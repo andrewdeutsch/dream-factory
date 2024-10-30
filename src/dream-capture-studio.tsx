@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import './dream-capture-studio.css'
 import logo from './img/logo.png';
+import { DreamLibrary } from './components/library/DreamLibrary';
 
 if (process.env.NODE_ENV === 'development') {
   const originalError = console.error;
@@ -25,8 +26,6 @@ const DreamCaptureStudio: React.FC = () => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number>();
 
-  const chunksRef = useRef<Blob[]>([]);
-
   const [hasRecorded, setHasRecorded] = useState(false);
 
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -45,6 +44,27 @@ const DreamCaptureStudio: React.FC = () => {
   const [showAnalysis, setShowAnalysis] = useState(false);
 
   const [autoRecord, setAutoRecord] = useState(false);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  // Add new state for title generation
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [dreamTitle, setDreamTitle] = useState<string | null>(null);
+
+  // Add new state for image
+  const [dreamImage, setDreamImage] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+  interface DreamEntry {
+    id: number;
+    title: string;
+    date: string;
+    imageUrl: string;
+    transcript: string;
+    analysis: string;
+  }
 
   const getTruncatedTranscript = (text: string) => {
     if (!text) return '';
@@ -352,20 +372,10 @@ const DreamCaptureStudio: React.FC = () => {
   };
 
   const handleSaveDream = async () => {
-    console.log('=== SAVING DREAM ===');
-    console.log('Audio blob:', audioBlob);
+    if (!audioBlob) return;
     
-    if (!audioBlob) {
-      console.error('No audio blob available');
-      return;
-    }
-    
-    if (!OPENAI_API_KEY) {
-      console.error('OpenAI API key not found');
-      return;
-    }
-
     try {
+        setShowTranscript(true);
       setIsTranscribing(true);
       
       // Create FormData and append the audio file
@@ -373,8 +383,6 @@ const DreamCaptureStudio: React.FC = () => {
       formData.append('file', audioBlob, 'recording.webm');
       formData.append('model', 'whisper-1');
       formData.append('language', 'en');
-      
-      console.log('Sending request to OpenAI...');
       
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
@@ -389,55 +397,72 @@ const DreamCaptureStudio: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log('Transcription received:', data);
-      
       setTranscript(data.text);
-      setShowTranscript(true);
+      setShowTranscript(true); // Show transcript view
       
     } catch (error) {
       console.error('Transcription error:', error);
-      // Revert to previous state if needed
-      setShowTranscript(false);
     } finally {
       setIsTranscribing(false);
     }
   };
 
-  const analyzeDream = async () => {
-    if (!transcript) return;
-    
+  const analyzeDream = async (transcript: string) => {
     try {
       setIsAnalyzing(true);
       
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4",
-          messages: [
-            {
-              role: "system",
-              content: "You are a dream analyst. Analyze the dream in a friendly, insightful way. Focus on symbolism, emotions, and potential meanings. Keep the tone light but thoughtful."
-            },
-            {
-              role: "user",
-              content: `Please analyze this dream: ${transcript}`
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
+      // Generate title and analysis in parallel
+      const [titleResponse, analysisResponse] = await Promise.all([
+        // Title generation
+        fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content: "Create a brief 2-3 word title for this dream. Be creative but concise."
+              },
+              {
+                role: "user",
+                content: transcript
+              }
+            ]
+          })
+        }),
+        
+        // Analysis generation (your existing analysis fetch)
+        fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENAI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content: "You are a dream analyst. Analyze the dream with a focus on symbolism, emotions, and potential meanings. Keep the analysis concise but insightful."
+              },
+              {
+                role: "user",
+                content: `Please analyze this dream: ${transcript}`
+              }
+            ]
+          })
         })
-      });
+      ]);
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
+      const titleData = await titleResponse.json();
+      const analysisData = await analysisResponse.json();
 
-      const data = await response.json();
-      setAnalysis(data.choices[0].message.content);
+      setDreamTitle(titleData.choices[0].message.content);
+      setAnalysis(analysisData.choices[0].message.content);
       setShowAnalysis(true);
       
     } catch (error) {
@@ -458,105 +483,68 @@ const DreamCaptureStudio: React.FC = () => {
     };
   }, []);
 
+  // Add current date formatting
+  const getCurrentDate = () => {
+    const date = new Date();
+    return date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit'
+    });
+  };
+
+  // Update the library button handler
+  const handleAddToLibrary = async () => {
+    try {
+      // Show library view immediately with loading state
+      setShowLibrary(true);
+      setShowAnalysis(false);
+      
+      // Generate image
+      await generateDreamImage();
+      
+    } catch (error) {
+      console.error('Error adding to library:', error);
+    }
+  };
+
+  // Add image generation function
+  const generateDreamImage = async () => {
+    setIsGeneratingImage(true);
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "dall-e-3",
+          prompt: `Create a dreamy, artistic interpretation of this dream: ${transcript}. Style: ethereal, painterly, surreal.`,
+          n: 1,
+          size: "1024x1024"
+        })
+      });
+
+      const data = await response.json();
+      setDreamImage(data.data[0].url);
+      
+    } catch (error) {
+      console.error('Error generating image:', error);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   return (
     <div className="dream-studio-container">
-      {showTranscript ? (
-        // Transcript screen
-        <div className="transcript-view">
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons"> 
-              <button aria-label="stats">📊</button>
-              <button aria-label="profile">👤</button>
-            </div>
-          </div>
-
-          <h2 className="studio-title">transcript</h2>
-          
-          <div className="transcript-text">
-            {isTranscribing ? (
-              <div className="loading-text">Transcribing your dream...</div>
-            ) : (
-              transcript
-            )}
-          </div>
-
-          <button 
-            className="analyze-button"
-            onClick={analyzeDream}
-          >
-            analyze dream
-          </button>
-        </div>
-      ) : (
-        // Recording screen (existing view)
-        <>
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons"> 
-              <button aria-label="stats">📊</button>
-              <button aria-label="profile">👤</button>
-            </div>
-          </div>
-
-          <h2 className="studio-title">dream capture studio</h2>
-
-          <div className="toggle-container">
-            <div className="toggle-switch">
-              <input 
-                type="checkbox" 
-                checked={autoRecord}
-                onChange={(e) => setAutoRecord(e.target.checked)}
-              />
-              <span className="slider"></span>
-            </div>
-            <span className="toggle-text">Auto record dreams</span>
-          </div>
-
-          <div className="waveform">
-            <canvas 
-              ref={canvasRef}
-              width={800}
-              height={200}
-              className={`waveform-canvas ${isRecording ? 'active' : ''}`}
-            />
-          </div>
-
-          <div className="controls-container">
-            <button 
-              className="record-button" 
-              onClick={handleRecordToggle}
-            >
-              {!hasRecorded && !isRecording ? (
-                <span className="record-label">REC</span>
-              ) : (
-                <span className="play-icon">
-                  {isRecording ? '❚❚' : '▶'}
-                </span>
-              )}
-            </button>
-            {(isRecording || hasRecorded) && (
-              <div className="status-text">
-                dream {isRecording ? 'recording..' : 'paused'}
-              </div>
-            )}
-            {!isRecording && hasRecorded && (
-              <button 
-                className="save-button"
-                onClick={handleSaveDream}
-              >
-                save dream
-              </button>
-            )}
-            <audio 
-              ref={audioRef}
-              src={audioUrl}
-              onEnded={() => setIsPlaying(false)}
-              onPause={() => setIsPlaying(false)}
-              onPlay={() => setIsPlaying(true)}
-            />
-          </div>
-        </>
+      {showLibrary && (
+        <DreamLibrary 
+          dreamTitle={dreamTitle || ''}
+          dreamImage={dreamImage || ''}
+          date={getCurrentDate()}
+        />
       )}
     </div>
   );

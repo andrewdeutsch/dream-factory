@@ -1,0 +1,56 @@
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 61, 89, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.auth-prompt {
+  background: white;
+  padding: 32px;
+  border-radius: 20px;
+  text-align: center;
+  width: 90%;
+  max-width: 320px;
+}
+
+.auth-prompt h3 {
+  color: #1E3D59;
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.auth-prompt p {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.auth-button {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-button img {
+  max-width: 100%;
+  height: auto;
+}
+
+.google-icon {
+  height: 48px;
+}
+
+.apple-icon {
+  height: 48px;
+} 

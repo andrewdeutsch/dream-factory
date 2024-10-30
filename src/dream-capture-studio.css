@@ -1,5 +1,11 @@
 .analysis-container {
   padding: 20px;
+  text-align: center;
+}
+
+.waveform-static {
+  margin: 40px 0;
+  height: 100px;
 }
 
 .analysis-content {
@@ -7,12 +13,63 @@
   border-radius: 12px;
   padding: 24px;
   margin: 20px 0;
+  text-align: left;
+}
+
+.analysis-title {
+  color: #1E3D59;
+  font-size: 18px;
+  margin-bottom: 16px;
 }
 
 .analysis-text {
   color: #1E3D59;
   font-size: 16px;
   line-height: 1.6;
+}
+
+.more-button {
+  color: #C4846C;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 8px;
+  display: block;
+}
+
+.play-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #1E3D59;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 40px auto;
+}
+
+.play-text {
+  color: #C4846C;
+  font-size: 18px;
+  margin-top: 16px;
+}
+
+.library-button {
+  width: 100%;
+  height: 60px;
+  background: #C4846C;
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: lowercase;
 }
 
 .back-button {
@@ -66,12 +123,22 @@
   justify-content: center;
   gap: 12px;
   margin: 40px 0;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.toggle-container.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .toggle-switch {
   position: relative;
   width: 50px;
   height: 30px;
+  opacity: 0;
 }
 
 .toggle-switch input {
@@ -112,13 +179,20 @@ input:checked + .slider:before {
   color: #1E3D59;
   font-size: 16px;
   font-weight: 500;
+  opacity: 0;
 }
 
 .record-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  min-height: 400px;  /* Add some vertical space */
+  position: relative;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  /* margin-top: 10px; */
+}
+
+.record-container.recording {
+  transform: translateY(150px);
 }
 
 .waveform {
@@ -168,7 +242,7 @@ input:checked + .slider:before {
 .status-text {
   color: #C4846C;
   font-size: 18px;
-  margin-top: 16px;
+  /* margin-top: 6px; */
   font-weight: 400;
 }
 
@@ -189,7 +263,7 @@ input:checked + .slider:before {
   font-size: 24px;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 40px;
+  margin-top: 120px;
   text-transform: lowercase;
 }
 
@@ -226,4 +300,131 @@ input:checked + .slider:before {
   font-weight: 600;
   cursor: pointer;
   margin-top: 40px;
-} 
+}
+
+.record-button-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* margin-top: 200px;  Adjust this value to position from top */
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+.record-button-wrapper.recording {
+  transform: translateY(130px);
+}
+
+.waveform {
+  position: absolute;
+  top: 160px;
+  left: 0;
+  right: 0;
+  height: 120px;
+  width: 100vw;
+}
+
+.waveform-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.record-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #1E3D59;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.play-icon {
+  color: #FFC2A6;
+  font-size: 32px;
+  margin-left: 4px;
+}
+
+.pause-icon {
+  color: #FFC2A6;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.status-text {
+  color: #C4846C;
+  font-size: 18px;
+  margin-top: 16px;
+  font-weight: 400;
+}
+
+.truncated-text {
+  position: relative;
+  max-height: 120px; /* Adjust this value as needed */
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.truncated-text.expanded {
+  max-height: 2000px; /* Large enough to show full content */
+}
+
+.truncated-text:not(.expanded)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(transparent, #FFF8F6);
+  pointer-events: none;
+}
+
+/* Remove waveform from analysis view */
+.analysis-container .waveform-static {
+  display: none;
+}
+
+.transcript-content {
+  background: #FFF8F6;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+}
+
+.loading-text {
+  color: #C4846C;
+  text-align: center;
+  font-style: italic;
+  padding: 20px;
+}
+
+.dream-title {
+  color: #1E3D59;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.dream-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.dream-image-placeholder {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: #E5E5E5;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+ 
