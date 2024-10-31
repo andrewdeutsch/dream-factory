@@ -19,6 +19,7 @@ const DreamCaptureStudio: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
 
   // Refs for audio visualization
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,6 +57,18 @@ const DreamCaptureStudio: React.FC = () => {
   // Add new state for image
   const [dreamImage, setDreamImage] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+  // Add this state near your other state declarations
+  const [isSaving, setIsSaving] = useState(false);
+
+  // First, update the state declaration
+  const [currentDreamData, setCurrentDreamData] = useState<{
+    title: string;
+    transcript: string;
+    analysis: string;
+    date: string;
+    timestamp: string;
+  } | null>(null);
 
   interface DreamEntry {
     id: number;
@@ -147,271 +160,212 @@ const DreamCaptureStudio: React.FC = () => {
   };
 
   const drawPlaybackWaveform = () => {
-    if (!canvasRef.current || !audioRef.current) return;
-    
-    // Clean up existing nodes before creating new ones
-    cleanupAudioNodes();
-    
-    // Create new audio context and nodes
-    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    analyserRef.current = audioContextRef.current.createAnalyser();
-    sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-    
-    // Connect nodes
-    sourceNodeRef.current.connect(analyserRef.current);
-    analyserRef.current.connect(audioContextRef.current.destination);
-    
-    const canvas = canvasRef.current;
-    const canvasCtx = canvas.getContext('2d');
-    if (!canvasCtx) return;
+    if (!audioRef.current) return;
 
-    const bufferLength = analyserRef.current.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    try {
+      // Create new audio context if needed
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
 
-    const draw = () => {
-      animationFrameRef.current = requestAnimationFrame(draw);
-      
-      analyserRef.current.getByteTimeDomainData(dataArray);
+      // Create new analyzer if needed
+      if (!analyserRef.current) {
+        analyserRef.current = audioContextRef.current.createAnalyser();
+      }
 
-      canvasCtx.fillStyle = '#1E3D59';
-      canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+      // Only create new source node if one doesn't exist
+      if (!sourceNodeRef.current && audioRef.current) {
+        sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+        sourceNodeRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContextRef.current.destination);
+      }
 
-      canvasCtx.lineWidth = 2;
-      canvasCtx.strokeStyle = '#FFC2A6';
-      canvasCtx.beginPath();
+      // Start visualization
+      drawWaveform();
+    } catch (err) {
+      console.error('Error setting up audio visualization:', err);
+    }
+  };
 
-      const sliceWidth = canvas.width / bufferLength;
-      let x = 0;
+  // Add this helper function to detect browser and supported formats
+  const getRecordingOptions = () => {
+    const types = [
+      'audio/webm;codecs=opus',  // Chrome, Firefox
+      'audio/mp4',               // Safari
+      'audio/ogg;codecs=opus',   // Firefox
+      'audio/webm'               // Fallback
+    ];
 
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = v * canvas.height / 2;
+    // Find the first supported type
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('Using recording type:', type);
+        return {
+          mimeType: type,
+          audioBitsPerSecond: 128000
+        };
+      }
+    }
 
-        if (i === 0) {
-          canvasCtx.moveTo(x, y);
-        } else {
-          canvasCtx.lineTo(x, y);
+    // If no types are supported, return undefined and let browser use default
+    console.log('No specified types supported, using browser default');
+    return undefined;
+  };
+
+  // Update the recorder creation
+  const setupRecorder = (stream: MediaStream) => {
+    try {
+      const options = getRecordingOptions();
+      const recorder = options 
+        ? new MediaRecorder(stream, options)
+        : new MediaRecorder(stream);
+
+      recorder.onstart = () => {
+        setIsRecording(true);
+        drawWaveform(); // Start waveform visualization
+      };
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        console.log('Recording stopped');
+        setIsRecording(false);
+        setHasRecorded(true);
+
+        // Create blob using the same type as the recording
+        const blob = new Blob(chunksRef.current, {
+          type: recorder.mimeType || 'audio/webm'
+        });
+        console.log('Created blob:', {
+          size: blob.size,
+          type: blob.type
+        });
+
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
         }
 
-        x += sliceWidth;
-      }
-
-      canvasCtx.lineTo(canvas.width, canvas.height / 2);
-      canvasCtx.stroke();
-    };
-
-    draw();
-  };
-
-  useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        console.log('Got media stream');
+        const url = URL.createObjectURL(blob);
         
-        // Set up audio context and analyzer
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        source.connect(analyserRef.current);
-        
-        const recorder = new MediaRecorder(stream, {
-          mimeType: 'audio/webm', // Explicitly set format
-        });
-        
-        recorder.ondataavailable = (e) => {
-          console.log('Data chunk received:', e.data.size, 'bytes');
-          if (e.data.size > 0) {
-            setAudioChunks(prev => [...prev, e.data]);
-          }
-        };
+        // Set up audio element
+        if (audioRef.current) {
+          audioRef.current.src = url;
+          audioRef.current.load();
+        }
 
-        recorder.onstart = () => {
-          console.log('Recording started');
-          setIsRecording(true);
-          setAudioChunks([]); // Clear previous chunks
-          setAudioUrl(null); // Clear previous URL
-          drawWaveform();
-        };
+        setAudioUrl(url);
+        setAudioBlob(blob);
+      };
 
-        recorder.onstop = () => {
-          console.log('Recording stopped');
-          setIsRecording(false);
-          
-          // Important: Use the current audioChunks here
-          const blob = new Blob(audioChunks, { type: 'audio/webm' });
-          console.log('Created blob:', blob.size, 'bytes');
-          
-          if (audioUrl) {
-            URL.revokeObjectURL(audioUrl);
-          }
-          
-          const url = URL.createObjectURL(blob);
-          console.log('Created audio URL:', url);
-          setAudioUrl(url);
-        };
-
-        setMediaRecorder(recorder);
-      })
-      .catch(err => console.error('Media stream error:', err));
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-    };
-  }, []);
-
-  const setupPlaybackAudioContext = () => {
-    if (!audioRef.current) return;
-    
-    // Only create new audio context and nodes if they don't exist
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-      sourceNodeRef.current.connect(analyserRef.current);
-      analyserRef.current.connect(audioContextRef.current.destination);
+      return recorder;
+    } catch (err) {
+      console.error('Recorder setup error:', err);
+      return null;
     }
   };
 
-  const handlePlayPause = async () => {
-    if (!audioRef.current || !audioUrl) return;
-    
-    try {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        await audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    } catch (error) {
-      console.error('Playback error:', error);
-    }
-  };
-
-  const stopAllMediaTracks = () => {
-    console.log('=== STOPPING ALL MEDIA TRACKS ===');
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => {
-        console.log(`Stopping track: ${track.kind}`);
-        track.stop();
-        track.enabled = false;
-      });
-      mediaStreamRef.current = null;
-    }
-  };
-
+  // Update handleRecordToggle to use the new setup
   const handleRecordToggle = () => {
+    if (hasRecorded && !isRecording) {
+      handlePlayPause();
+      return;
+    }
+
     if (isRecording && mediaRecorder) {
-      console.log('=== STOPPING RECORDING ===');
       mediaRecorder.stop();
       stopAllMediaTracks();
-      setIsRecording(false);
-      setMediaRecorder(null);
     } else {
-      console.log('=== STARTING RECORDING ===');
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           mediaStreamRef.current = stream;
           setupAudioContext(stream);
           
-          const recorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-          });
-          
-          recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-              console.log('Data chunk received:', e.data.size, 'bytes');
-              chunksRef.current.push(e.data);
-            }
-          };
-
-          recorder.onstart = () => {
-            console.log('Recording started');
+          const recorder = setupRecorder(stream);
+          if (recorder) {
+            setMediaRecorder(recorder);
+            recorder.start(100); // Small chunks for better compatibility
             setIsRecording(true);
-            chunksRef.current = []; // Clear previous chunks
-            setAudioUrl(null);
-            drawWaveform();
-          };
-
-          recorder.onstop = () => {
-            console.log('Recording stopped, processing chunks...');
-            setIsRecording(false);
-            
-            const finalBlob = new Blob(chunksRef.current, { 
-              type: 'audio/webm;codecs=opus' 
-            });
-            console.log('Created blob:', finalBlob.size, 'bytes');
-            
-            if (audioUrl) {
-              URL.revokeObjectURL(audioUrl);
-            }
-            
-            const url = URL.createObjectURL(finalBlob);
-            console.log('Created audio URL:', url);
-            setAudioUrl(url);
-            setAudioBlob(finalBlob); // Save blob for transcription
-            if (animationFrameRef.current) {
-              cancelAnimationFrame(animationFrameRef.current);
-            }
-            setHasRecorded(true);
-          };
-
-          setMediaRecorder(recorder);
-          recorder.start(1000);
-          console.log('2. Started recording');
+            chunksRef.current = [];
+          }
         })
         .catch(err => console.error('Media stream error:', err));
     }
   };
 
   const handleSaveDream = async () => {
-    if (!audioBlob) return;
-    
+    if (!audioBlob) {
+      console.error('No audio recording found');
+      return;
+    }
+
+    console.log('Starting transcription process');
+    setIsTranscribing(true);
+
     try {
-        setShowTranscript(true);
-      setIsTranscribing(true);
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
       
-      // Create FormData and append the audio file
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'recording.webm');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'en');
-      
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: formData
-      });
+      reader.onload = async () => {
+        try {
+          const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            },
+            body: (() => {
+              const formData = new FormData();
+              const audioFile = new Blob([audioBlob], { type: 'audio/mp3' });
+              formData.append('file', audioFile, 'recording.mp3');
+              formData.append('model', 'whisper-1');
+              formData.append('language', 'en');
+              return formData;
+            })()
+          });
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
+          if (!response.ok) {
+            throw new Error(`OpenAI API error: ${response.status}`);
+          }
 
-      const data = await response.json();
-      setTranscript(data.text);
-      setShowTranscript(true); // Show transcript view
-      
+          const data = await response.json();
+          console.log('Received transcript:', data.text);
+          
+          // Update states in correct order
+          setTranscript(data.text);
+          setIsTranscribing(false);
+          setShowTranscript(true); // Move this last
+          console.log('States updated, should show transcript screen');
+
+          // After successful transcription, make sure we preserve the audio URL
+          if (audioRef.current && audioUrl) {
+            console.log('Preserving audio for transcript screen');
+            audioRef.current.src = audioUrl;
+            audioRef.current.load();
+          }
+        } catch (error) {
+          console.error('Error in transcription:', error);
+          setIsTranscribing(false);
+        }
+      };
     } catch (error) {
       console.error('Transcription error:', error);
-    } finally {
       setIsTranscribing(false);
     }
   };
 
   const analyzeDream = async (transcript: string) => {
+    console.log('Starting dream analysis...');
+    console.log('Transcript:', transcript);
+    console.log('API Key available:', !!OPENAI_API_KEY);
+
     try {
       setIsAnalyzing(true);
+      console.log('Making API calls to OpenAI...');
       
-      // Generate title and analysis in parallel
+      // Make both API calls in parallel
       const [titleResponse, analysisResponse] = await Promise.all([
         // Title generation
         fetch('https://api.openai.com/v1/chat/completions', {
@@ -425,7 +379,7 @@ const DreamCaptureStudio: React.FC = () => {
             messages: [
               {
                 role: "system",
-                content: "Create a brief 2-3 word title for this dream. Be creative but concise."
+                content: "Generate a concise 2-3 word title for this dream. Use simple, descriptive words. Avoid emotional or flowery language."
               },
               {
                 role: "user",
@@ -435,7 +389,7 @@ const DreamCaptureStudio: React.FC = () => {
           })
         }),
         
-        // Analysis generation (your existing analysis fetch)
+        // Analysis generation
         fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -447,26 +401,53 @@ const DreamCaptureStudio: React.FC = () => {
             messages: [
               {
                 role: "system",
-                content: "You are a dream analyst. Analyze the dream with a focus on symbolism, emotions, and potential meanings. Keep the analysis concise but insightful."
+                content: `You are a neutral dream analyzer...`
               },
               {
                 role: "user",
-                content: `Please analyze this dream: ${transcript}`
+                content: `Analyze this dream: ${transcript}`
               }
             ]
           })
         })
       ]);
 
-      const titleData = await titleResponse.json();
-      const analysisData = await analysisResponse.json();
+      console.log('Responses received from OpenAI');
+      
+      // Check if responses are ok
+      if (!titleResponse.ok || !analysisResponse.ok) {
+        throw new Error('API response not ok');
+      }
 
-      setDreamTitle(titleData.choices[0].message.content);
-      setAnalysis(analysisData.choices[0].message.content);
+      const [titleData, analysisData] = await Promise.all([
+        titleResponse.json(),
+        analysisResponse.json()
+      ]);
+
+      console.log('Title data:', titleData);
+      console.log('Analysis data:', analysisData);
+
+      // Add null checks and error handling
+      if (!titleData?.choices?.[0]?.message?.content || !analysisData?.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response format from OpenAI');
+      }
+
+      const title = titleData.choices[0].message.content;
+      const analysisText = analysisData.choices[0].message.content;
+
+      console.log('Title generated:', title);
+      console.log('Analysis generated:', analysisText);
+
+      // Update state with both title and analysis
+      setDreamTitle(title);
+      setAnalysis(analysisText);
+      setShowTranscript(false);
       setShowAnalysis(true);
       
     } catch (error) {
-      console.error('Analysis error:', error);
+      console.error('Analysis/Title generation error:', error);
+      setAnalysis('Unable to analyze dream at this time. Please try again later.');
+      setDreamTitle('Untitled Dream');
     } finally {
       setIsAnalyzing(false);
     }
@@ -494,17 +475,51 @@ const DreamCaptureStudio: React.FC = () => {
   };
 
   // Update the library button handler
-  const handleAddToLibrary = async () => {
+  const handleSaveToLibrary = async () => {
     try {
-      // Show library view immediately with loading state
-      setShowLibrary(true);
-      setShowAnalysis(false);
+      setIsSaving(true);
+      console.log('Starting save to library process');
       
-      // Generate image
+      // Get user's locale and timezone date
+      const userLocale = navigator.language || 'en-US';
+      const userDate = new Date();
+      
+      console.log('User timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+      console.log('Local date/time:', userDate.toString());
+      
+      // Format the date based on user's locale and their local time
+      const formattedDate = userDate.toLocaleDateString(userLocale, {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }).replace(/[/\.]/g, '-');
+      
+      console.log('Formatted local date:', formattedDate);
+      
+      const dreamData = {
+        title: dreamTitle || 'Untitled Dream',
+        transcript: transcript || '',
+        analysis: analysis || '',
+        date: formattedDate,
+        timestamp: userDate.toISOString()
+      };
+      
+      console.log('Dream data to save:', dreamData);
+      setCurrentDreamData(dreamData);
+
+      // Generate image before showing library
+      console.log('Starting image generation');
       await generateDreamImage();
       
+      // Switch to library view after image is generated
+      setShowAnalysis(false);
+      setShowLibrary(true);
+      
     } catch (error) {
-      console.error('Error adding to library:', error);
+      console.error('Error saving dream:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -521,7 +536,7 @@ const DreamCaptureStudio: React.FC = () => {
         },
         body: JSON.stringify({
           model: "dall-e-3",
-          prompt: `Create a dreamy, artistic interpretation of this dream: ${transcript}. Style: ethereal, painterly, surreal.`,
+          prompt: `Create a hyper-realistic photograph interpreting this dream: ${analysis}. Style: photorealistic, cinematic, high detail, dramatic lighting.`,
           n: 1,
           size: "1024x1024"
         })
@@ -529,22 +544,260 @@ const DreamCaptureStudio: React.FC = () => {
 
       const data = await response.json();
       setDreamImage(data.data[0].url);
-      
+      console.log('Dream image generated:', data.data[0].url);
     } catch (error) {
       console.error('Error generating image:', error);
     } finally {
       setIsGeneratingImage(false);
+      console.log('Image generation failed');
     }
   };
 
+  const handlePlayPause = async () => {
+    console.log('Play/Pause clicked');
+    console.log('Audio ref exists:', !!audioRef.current);
+    console.log('Audio URL exists:', !!audioUrl);
+    console.log('Audio ref src:', audioRef.current?.src);
+    console.log('Is Playing:', isPlaying);
+
+    if (!audioRef.current || !audioUrl) {
+      console.error('Missing audio requirements:', {
+        audioRef: !!audioRef.current,
+        audioUrl: !!audioUrl
+      });
+      return;
+    }
+
+    try {
+      if (isPlaying) {
+        await audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.src = audioUrl;
+        await audioRef.current.load();
+        await audioRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch (err) {
+      console.error('Playback error details:', err);
+    }
+  };
+
+  // Add this function near your other utility functions
+  const stopAllMediaTracks = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => {
+        console.log('Stopping track:', track.kind);
+        track.stop();
+      });
+      mediaStreamRef.current = null;
+    }
+  };
+
+  // Add this with your other functions
+  const handleAnalyze = () => {
+    console.log('Analyzing dream transcript:', transcript);
+    // Add your analysis logic here
+    // For now, we'll just log the transcript
+  };
+
+  // Add a useEffect to monitor audio state changes
+  useEffect(() => {
+    if (showTranscript && audioRef.current && audioUrl) {
+      console.log('Setting up audio for transcript screen');
+      audioRef.current.src = audioUrl;
+      audioRef.current.load();
+    }
+  }, [showTranscript, audioUrl]);
+
+  // Add this useEffect to debug audio element mounting
+  useEffect(() => {
+    console.log('Audio element mounted:', !!audioRef.current);
+  }, [audioRef.current]);
+
   return (
     <div className="dream-studio-container">
-      {showLibrary && (
-        <DreamLibrary 
-          dreamTitle={dreamTitle || ''}
-          dreamImage={dreamImage || ''}
-          date={getCurrentDate()}
-        />
+      <audio 
+        ref={audioRef} 
+        src={audioUrl || ''} 
+        preload="auto"
+        onError={(e) => console.error('Audio element error:', e)}
+      />
+
+      {showLibrary ? (
+        <div className="library-screen">
+          <div className="app-header">
+            <img src={logo} alt="Dream Factory" className="logo" />
+            <div className="header-icons">
+              <button className="stats-icon">📊</button>
+              <button className="profile-icon">👤</button>
+            </div>
+          </div>
+
+          <h1 className="library-title">dream library</h1>
+
+          <div className="dream-cards-container">
+            {currentDreamData && (
+              <div className="dream-card">
+                <div className="dream-card-image">
+                  {dreamImage ? (
+                    <img src={dreamImage} alt="Dream visualization" className="dream-image" />
+                  ) : (
+                    <div className="placeholder-x">
+                      <div className="x-line1"></div>
+                      <div className="x-line2"></div>
+                    </div>
+                  )}
+                </div>
+                <div className="dream-card-info">
+                  <h2 className="dream-card-title">{currentDreamData.title}</h2>
+                  <span className="dream-card-date">{currentDreamData.date}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : showAnalysis ? (
+        <div className="analysis-screen">
+          <div className="app-header">
+            <img src={logo} alt="Dream Factory" className="logo" />
+            <div className="header-icons">
+              <button className="stats-icon">📊</button>
+              <button className="profile-icon">👤</button>
+            </div>
+          </div>
+
+          <h1 className="studio-title">dream analysis</h1>
+          
+          <div className="analysis-content">
+            <div className={`analysis-container ${isExpanded ? 'expanded' : ''}`}>
+              <div className={`analysis-text-container ${isExpanded ? 'expanded' : ''}`}>
+                <h2 className="dream-title">{dreamTitle}</h2>
+                <p className="analysis-text">{analysis}</p>
+              </div>
+              <span 
+                onClick={() => setIsExpanded(!isExpanded)} 
+                className="more-text"
+              >
+                {isExpanded ? 'less' : 'more'}
+              </span>
+            </div>
+
+            <button 
+              onClick={handleSaveToLibrary}
+              className="library-button"
+              disabled={isSaving}
+            >
+              {isSaving ? 'saving...' : 'save to library'}
+            </button>
+          </div>
+        </div>
+      ) : showTranscript ? (
+        // Transcript screen
+        <div className="transcript-screen">
+          <div className="app-header">
+            <img src={logo} alt="Dream Factory" className="logo" />
+            <div className="header-icons">
+              <button className="stats-icon">📊</button>
+              <button className="profile-icon">👤</button>
+            </div>
+          </div>
+
+          <h1 className="studio-title studio-title-transcript">dream capture studio</h1>
+          
+          <div className="transcript-content">
+            <div className="transcript-label">transcript</div>
+            
+            <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`}>
+              <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
+                <p className="transcript-text">{transcript}</p>
+              </div>
+              <span 
+                onClick={() => setIsExpanded(!isExpanded)} 
+                className="more-text"
+              >
+                {isExpanded ? 'less' : 'more'}
+              </span>
+            </div>
+
+            <div className="playback-controls">
+              <button 
+                onClick={handlePlayPause}
+                className="play-button-large"
+                disabled={!audioRef.current || !audioUrl}
+              >
+                {isPlaying ? '❚❚' : '▶'}
+              </button>
+            </div>
+
+            <button 
+              onClick={() => analyzeDream(transcript || '')}
+              className="analyze-button"
+              disabled={isAnalyzing || !transcript}
+            >
+              {isAnalyzing ? 'analyzing...' : 'analyze dream'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Recording screen
+        <>
+          <div className="app-header">
+            <img src={logo} alt="Dream Factory" className="logo" />
+            <div className="header-icons">
+              <button className="stats-icon">📊</button>
+              <button className="profile-icon">👤</button>
+            </div>
+          </div>
+
+          <h1 className="studio-title">dream capture studio</h1>
+
+          {/* Waveform */}
+          <div className={`waveform ${hasRecorded || isRecording ? 'recording' : ''}`}>
+            <canvas 
+              ref={canvasRef} 
+              className="waveform-canvas"
+            />
+          </div>
+
+          {/* Record Button and Status */}
+          <div className={`controls-container ${hasRecorded || isRecording ? 'recording' : ''}`}>
+            <button 
+              onClick={handleRecordToggle}
+              className="record-button"
+            >
+              {isRecording ? (
+                <span className="pause-icon">❚❚</span>
+              ) : hasRecorded && isPlaying ? (
+                <span className="pause-icon">❚❚</span>
+              ) : (
+                <span className="play-icon">▶</span>
+              )}
+            </button>
+            <div className="status-text">
+              {isRecording ? 'Recording...' : hasRecorded ? 'play dream' : 'tap to record'}
+            </div>
+          </div>
+
+          {audioUrl && !isRecording && (
+            <button 
+              onClick={handlePlayPause}
+              className={`playback-button ${isPlaying ? 'playing' : ''}`}
+            >
+              {/* {isPlaying ? 'Pause' : 'Play'} */}
+            </button>
+          )}
+
+          {hasRecorded && !isRecording && (
+            <button 
+              onClick={handleSaveDream}
+              className="save-button"
+              disabled={isTranscribing}
+            >
+              {isTranscribing ? 'transcribing...' : 'save dream'}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
