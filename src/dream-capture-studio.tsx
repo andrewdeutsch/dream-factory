@@ -549,7 +549,7 @@ const DreamCaptureStudio: React.FC = () => {
       console.error('Error generating image:', error);
     } finally {
       setIsGeneratingImage(false);
-      console.log('Image generation failed');
+      //console.log('Image generation failed');
     }
   };
 
@@ -766,23 +766,26 @@ const DreamCaptureStudio: React.FC = () => {
               onClick={handleRecordToggle}
               className="record-button"
             >
-              {isRecording ? (
+              {isRecording || isPlaying ? (
                 <span className="pause-icon">❚❚</span>
-              ) : hasRecorded && isPlaying ? (
-                <span className="pause-icon">❚❚</span>
+              ) : !hasRecorded ? (
+                <span className="record-text">REC</span>
               ) : (
                 <span className="play-icon">▶</span>
               )}
             </button>
             <div className="status-text">
-              {isRecording ? 'Recording...' : hasRecorded ? 'play dream' : 'tap to record'}
+              {isRecording ? 'Recording...' : 
+               isPlaying ? 'Playing...' :
+               hasRecorded ? 'tap to play' : 
+               'tap to record'}
             </div>
           </div>
 
           {audioUrl && !isRecording && (
             <button 
               onClick={handlePlayPause}
-              className={`playback-button ${isPlaying ? 'playing' : ''}`}
+              //className={`playback-button ${isPlaying ? 'playing' : ''}`}
             >
               {/* {isPlaying ? 'Pause' : 'Play'} */}
             </button>

@@ -1,5 +1,5 @@
 .analysis-container {
-    padding: 20px;
+    /* padding: 20px; */
     text-align: center;
   }
   
@@ -18,13 +18,13 @@
   
   .analysis-title {
     color: #1E3D59;
-    font-size: 18px;
+    font-size: 24px;
     margin-bottom: 16px;
   }
   
   .analysis-text {
     color: #1E3D59;
-    font-size: 16px;
+    font-size: 13px;
     line-height: 1.6;
   }
   
@@ -72,19 +72,7 @@
     text-transform: lowercase;
   }
   
-  .back-button {
-    width: 100%;
-    height: 50px;
-    background: #C4846C;
-    border: none;
-    border-radius: 25px;
-    color: white;
-    font-size: 18px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 20px;
-  }
-  
+
   .loading-text {
     color: #C4846C;
     text-align: center;
@@ -93,7 +81,7 @@
   }
   
   .dream-studio-container {
-    padding: 20px;
+    /* padding: 20px; */
     max-width: 390px;
     margin: 0 auto;
     text-align: center;
@@ -112,7 +100,7 @@
   }
   
   .studio-title {
-    font-size: 32px;
+    font-size: 24px;
     color: #1E3D59;
     margin-bottom: 40px;
   }
@@ -302,7 +290,7 @@
   }
   
   .transcript-view {
-    padding: 20px;
+    /* padding: 20px; */
   }
   
   .transcript-text {
@@ -341,12 +329,12 @@
     }
   
   .record-button-wrapper.recording {
-    transform: translateY(130px);
+    transform: translateY(120px);
   }
   
   .waveform {
     position: absolute;
-    top: 160px;
+    top: 130px;
     left: 0;
     right: 0;
     height: 120px;
@@ -433,7 +421,7 @@
   
   .dream-title {
     color: #1E3D59;
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 600;
     margin-bottom: 16px;
     text-align: center;
@@ -457,7 +445,7 @@
   }
   
   .transcript-screen {
-    padding: 20px;
+    /* padding: 20px; */
     max-width: 390px;
     margin: 0 auto;
   }
@@ -468,7 +456,7 @@
   }
   
   .transcript-title {
-    font-size: 32px;
+    font-size: 24px;
     font-weight: bold;
     margin-bottom: 20px;
     color: #1E3D59;
@@ -652,12 +640,8 @@
   }
   
   .analysis-screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    padding: 1rem;
+    max-width: 390px;
+    margin: 0 auto;
   }
   
   .analysis-content {
@@ -745,17 +729,13 @@
   }
   
   .library-screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    padding: 1rem;
-    background-color: white;
+    max-width: 390px;
+    margin: 0 auto;
   }
   
   .library-title {
     color: #CD7F32;
-    font-size: 1.5rem;
+    font-size: 24px;
     margin: 2rem 0;
     text-transform: lowercase;
   }
@@ -815,7 +795,7 @@
   
   .dream-card-title {
     color: #1E3D59;
-    font-size: 1rem;
+    font-size: 24px;
     margin: 0 0 0.25rem 0;
     text-transform: lowercase;
   }
@@ -824,5 +804,11 @@
     color: #1E3D59;
     font-size: 0.875rem;
     opacity: 0.8;
+  }
+  
+  .record-text {
+    color: #FFC2A6;
+    font-size: 18px;
+    font-weight: 500;
   }
    
