@@ -999,4 +999,38 @@
     line-height: 1.6;
     font-size: 16px;
   }
+  
+  .auth-container {
+    margin-top: 2rem;
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .auth-button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    border-radius: 20px;
+    font-size: 0.9rem;
+  }
+  
+  .signup-button {
+    background-color: #FFC2A6;
+    color: #1E3D59;
+  }
+  
+  .signup-button:hover {
+    opacity: 0.9;
+  }
+  
+  .library-link {
+    color: #1e3d59;
+    text-decoration: none;
+    font-size: 1.2rem;
+    transition: color 0.2s;
+  }
+  
+  .library-link:hover {
+    color: #ff6e40;
+  }
    

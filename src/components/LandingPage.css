@@ -1,0 +1,70 @@
+.landing-container {
+  height: 100vh;
+  background-image: url('/launch-screen-bg-img.png');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+}
+
+.landing-content {
+  padding: 2rem;
+}
+
+.logo-text {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.logo-dream {
+  color: #FFC2A6;  /* Your orange/coral color */
+  display: block;
+}
+
+.logo-factory {
+  color: #1E3D59;  /* Your navy color */
+}
+
+.landing-tagline {
+  color: #FFC2A6;
+  margin: 2rem 0;
+  font-size: 1.5rem;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.auth-button {
+  padding: 0.75rem 2rem;
+  border-radius: 25px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.login-button {
+  background-color: #1E3D59;
+  color: white;
+}
+
+.signup-button {
+  background-color: #1E3D59;
+  color: white;
+}
+
+.auth-button:hover {
+  transform: translateY(-2px);
+}
+
+.page-background {
+  background-image: url('/launch-screen-bg-img.png');
+  background-size: cover;
+  background-position: center;
+} 

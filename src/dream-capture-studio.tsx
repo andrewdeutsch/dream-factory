@@ -2,6 +2,16 @@ import React, { useEffect, useState, useRef } from 'react'
 import './dream-capture-studio.css'
 import logo from './img/logo.png';
 import { DreamLibrary } from './components/library/DreamLibrary';
+import { useAuth } from './context/AuthContext';
+import { Link } from 'react-router-dom';
+import { db } from './config/firebase';
+import { 
+  collection, 
+  getDocs,
+  doc,
+  setDoc,
+  getFirestore 
+} from 'firebase/firestore';
 
 if (process.env.NODE_ENV === 'development') {
   const originalError = console.error;
@@ -625,6 +635,8 @@ const DreamCaptureStudio: React.FC = () => {
     setShowDreamDetail(true);
   };
 
+  const { user } = useAuth();
+
   return (
     <div className="dream-studio-container">
       <audio 
@@ -639,8 +651,7 @@ const DreamCaptureStudio: React.FC = () => {
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
             <div className="header-icons">
-              <button className="stats-icon">📊</button>
-              <button className="profile-icon">👤</button>
+             
             </div>
           </div>
 
@@ -682,8 +693,9 @@ const DreamCaptureStudio: React.FC = () => {
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
             <div className="header-icons">
-              <button className="stats-icon">📊</button>
-              <button className="profile-icon">👤</button>
+              <Link to="/library" className="library-link">
+                library
+              </Link>
             </div>
           </div>
 
@@ -725,8 +737,7 @@ const DreamCaptureStudio: React.FC = () => {
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
             <div className="header-icons">
-              <button className="stats-icon">📊</button>
-              <button className="profile-icon">👤</button>
+              
             </div>
           </div>
 
@@ -761,8 +772,7 @@ const DreamCaptureStudio: React.FC = () => {
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
             <div className="header-icons">
-              <button className="stats-icon">📊</button>
-              <button className="profile-icon">👤</button>
+              
             </div>
           </div>
 
@@ -807,10 +817,11 @@ const DreamCaptureStudio: React.FC = () => {
         <>
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons">
-              <button className="stats-icon">📊</button>
-              <button className="profile-icon">👤</button>
-            </div>
+            {currentDreamData && (
+              <Link to="/library" className="library-link">
+                library
+              </Link>
+            )}
           </div>
 
           <h1 className="studio-title">dream capture studio</h1>
@@ -865,6 +876,14 @@ const DreamCaptureStudio: React.FC = () => {
           )}
         </>
       )}
+
+      <div className="auth-container">
+        {!user && (
+          <Link to="/signup" className="auth-button signup-button">
+            Sign Up
+          </Link>
+        )}
+      </div>
     </div>
   );
 };
