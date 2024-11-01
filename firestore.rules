@@ -27,6 +27,11 @@ service cloud.firestore {
                       request.auth.uid == userId;
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
+
+      // Allow access to all documents in the dreams subcollection
+      match /dreams/{dreamId} {
+        allow read, write: if isOwner(userId);
+      }
     }
   }
 } 

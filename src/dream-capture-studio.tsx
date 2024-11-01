@@ -80,6 +80,9 @@ const DreamCaptureStudio: React.FC = () => {
     timestamp: string;
   } | null>(null);
 
+  // Add this with your other state declarations
+  const [dreams, setDreams] = useState<any[]>([]);
+
   interface DreamEntry {
     id: number;
     title: string;
@@ -486,46 +489,63 @@ const DreamCaptureStudio: React.FC = () => {
 
   // Update the library button handler
   const handleSaveToLibrary = async () => {
+    if (!user) return;
+
     try {
       setIsSaving(true);
       console.log('Starting save to library process');
-      
-      // Get user's locale and timezone date
+
+      // 1. Get user's locale and timezone info
       const userLocale = navigator.language || 'en-US';
       const userDate = new Date();
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       
-      console.log('User timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+      console.log('User locale:', userLocale);
+      console.log('User timezone:', userTimezone);
       console.log('Local date/time:', userDate.toString());
       
-      // Format the date based on user's locale and their local time
+      // 2. Format the date (MM-DD-YY)
       const formattedDate = userDate.toLocaleDateString(userLocale, {
         month: '2-digit',
         day: '2-digit',
         year: '2-digit',
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }).replace(/[/\.]/g, '-');
+        timeZone: userTimezone
+      }).replace(/[/\.]/g, '-');  // Replace slashes or dots with hyphens
       
       console.log('Formatted local date:', formattedDate);
-      
+
+      // 3. Create the dream data object with all required fields
       const dreamData = {
         title: dreamTitle || 'Untitled Dream',
         transcript: transcript || '',
         analysis: analysis || '',
+        dreamImage: dreamImage || null,
         date: formattedDate,
-        timestamp: userDate.toISOString()
+        timestamp: userDate.toISOString(),
+        userId: user.uid,  // This is important for the security rules
+        createdAt: userDate.getTime()      // Milliseconds since epoch for easy sorting
       };
-      
-      console.log('Dream data to save:', dreamData);
+
       setCurrentDreamData(dreamData);
 
-      // Generate image before showing library
+      console.log('Dream data object created:', dreamData);
+
+      // Generate image before saving
       console.log('Starting image generation');
       await generateDreamImage();
-      
-      // Switch to library view after image is generated
+
+      // Dreams are saved to Firestore under the user's ID
+      const dreamRef = doc(collection(db, 'users', user.uid, 'dreams'));
+      await setDoc(dreamRef, dreamData);
+
+      console.log('Dream saved successfully with ID:', dreamRef.id);
+
+      // Update UI states
       setShowAnalysis(false);
       setShowLibrary(true);
-      
+      setHasExistingDreams(true);
+
+      // Continue with the rest of the save process...
     } catch (error) {
       console.error('Error saving dream:', error);
     } finally {
@@ -636,6 +656,64 @@ const DreamCaptureStudio: React.FC = () => {
   };
 
   const { user } = useAuth();
+
+  const [hasExistingDreams, setHasExistingDreams] = useState(false);
+
+  const checkForExistingDreams = async (userId: string) => {
+    try {
+      console.log('Checking dreams for user:', userId);
+      console.log('Auth state:', user);  // Add this to check auth state
+      
+      const dreamsRef = collection(db, 'users', userId, 'dreams');
+      console.log('Dreams reference created');
+      
+      const dreamSnapshot = await getDocs(dreamsRef);
+      console.log('Got dreams snapshot:', dreamSnapshot);
+      
+      setHasExistingDreams(!dreamSnapshot.empty);
+      console.log('User has dreams:', !dreamSnapshot.empty);
+    } catch (error) {
+      console.error('Error checking for dreams:', error);
+      // Log the full error object
+      console.log('Full error:', JSON.stringify(error, null, 2));
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      console.log('User authenticated:', user.uid);
+      checkForExistingDreams(user.uid);
+    } else {
+      console.log('No user authenticated');
+    }
+  }, [user]);
+  const fetchDreams = async () => {
+    if (!user) return;
+    
+    try {
+      const dreamsRef = collection(db, 'users', user.uid, 'dreams');
+      const dreamSnapshot = await getDocs(dreamsRef);
+      const dreams = dreamSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      // Sort dreams by timestamp, newest first
+      dreams.sort((a, b) => b.createdAt - a.createdAt);
+      
+      // Set the dreams in state to display them
+      setDreams(dreams);
+    } catch (error) {
+      console.error('Error fetching dreams:', error);
+    }
+  };
+
+  // Add this useEffect to fetch dreams when library is shown
+  useEffect(() => {
+    if (showLibrary && user) {
+      console.log('Fetching dreams for library view');
+      fetchDreams();
+    }
+  }, [showLibrary, user]);
 
   return (
     <div className="dream-studio-container">
@@ -817,11 +895,13 @@ const DreamCaptureStudio: React.FC = () => {
         <>
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
-            {currentDreamData && (
-              <Link to="/library" className="library-link">
-                library
-              </Link>
-            )}
+            <div className="header-icons">
+              {(hasExistingDreams || showLibrary) && (
+                <Link to="/library" className="library-link">
+                  library
+                </Link>
+              )}
+            </div>
           </div>
 
           <h1 className="studio-title">dream capture studio</h1>
@@ -877,13 +957,13 @@ const DreamCaptureStudio: React.FC = () => {
         </>
       )}
 
-      <div className="auth-container">
+      {/* <div className="auth-container">
         {!user && (
           <Link to="/signup" className="auth-button signup-button">
             Sign Up
           </Link>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };
