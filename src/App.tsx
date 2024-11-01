@@ -1,5 +1,5 @@
 import React from 'react'
-import DreamCaptureStudio from './dream-capture-studio'
+import DreamCaptureStudio from './dream-capture-studio.tsx'
 
 function App() {
   return (

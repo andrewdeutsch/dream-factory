@@ -465,7 +465,7 @@ const DreamCaptureStudio: React.FC = () => {
   }, []);
 
   // Add current date formatting
-  const getCurrentDate = () => {
+  const getCurrentDate = () => {a
     const date = new Date();
     return date.toLocaleDateString('en-US', {
       month: '2-digit',
@@ -615,6 +615,16 @@ const DreamCaptureStudio: React.FC = () => {
     console.log('Audio element mounted:', !!audioRef.current);
   }, [audioRef.current]);
 
+  // Add new state for detail view
+  const [selectedDream, setSelectedDream] = useState<DreamEntry | null>(null);
+  const [showDreamDetail, setShowDreamDetail] = useState(false);
+
+  // Add handler for dream card selection
+  const handleDreamSelect = (dream: DreamEntry) => {
+    setSelectedDream(dream);
+    setShowDreamDetail(true);
+  };
+
   return (
     <div className="dream-studio-container">
       <audio 
@@ -624,7 +634,50 @@ const DreamCaptureStudio: React.FC = () => {
         onError={(e) => console.error('Audio element error:', e)}
       />
 
-      {showLibrary ? (
+      {showDreamDetail ? (
+        <div className="dream-detail-screen">
+          <div className="app-header">
+            <img src={logo} alt="Dream Factory" className="logo" />
+            <div className="header-icons">
+              <button className="stats-icon">📊</button>
+              <button className="profile-icon">👤</button>
+            </div>
+          </div>
+
+          <h1 className="dream-library-title">dream library</h1>
+          
+          <div className="dream-detail-content">
+            <div className="dream-title-container">
+              <h2 className="dream-title">"{selectedDream?.title}"</h2>
+              <span className="dream-date">{selectedDream?.date}</span>
+            </div>
+
+            <div className="dream-detail-image-container">
+              <img 
+                src={selectedDream?.imageUrl} 
+                alt="Dream visualization" 
+                className="dream-detail-image"
+              />
+              <div className="dream-analysis-overlay">
+                <div className="analysis-label">Analysis generated:</div>
+                <div className="analysis-text">
+                  {selectedDream?.analysis}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            className="back-to-library"
+            onClick={() => {
+              setShowDreamDetail(false);
+              setSelectedDream(null);
+            }}
+          >
+            back to library
+          </button>
+        </div>
+      ) : showLibrary ? (
         <div className="library-screen">
           <div className="app-header">
             <img src={logo} alt="Dream Factory" className="logo" />
@@ -638,7 +691,17 @@ const DreamCaptureStudio: React.FC = () => {
 
           <div className="dream-cards-container">
             {currentDreamData && (
-              <div className="dream-card">
+              <div 
+                className="dream-card"
+                onClick={() => handleDreamSelect({
+                  id: 1, // Add an ID if needed
+                  title: currentDreamData.title,
+                  date: currentDreamData.date,
+                  imageUrl: dreamImage || '', // Add the dreamImage state here
+                  transcript: currentDreamData.transcript,
+                  analysis: currentDreamData.analysis
+                })}
+              >
                 <div className="dream-card-image">
                   {dreamImage ? (
                     <img src={dreamImage} alt="Dream visualization" className="dream-image" />
