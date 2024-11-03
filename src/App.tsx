@@ -5,6 +5,9 @@ import { SignUp } from './components/auth/SignUp';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { LandingPage } from './components/LandingPage';
 import DreamCaptureStudio from './dream-capture-studio.tsx';
+import { LibraryPage } from './components/LibraryPage';
+import { DreamDetail } from './components/library/DreamDetail'; 
+import { ProfilePage } from './components/ProfilePage';  
 
 function App() {
   return (
@@ -22,6 +25,9 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/dream/:dreamId" element={<DreamDetail />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </AuthProvider>
     </Router>

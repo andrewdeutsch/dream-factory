@@ -1,0 +1,41 @@
+.dream-studio-container {
+    max-width: 390px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .library-title {
+    color: #C4846C;
+    font-size: 24px;
+    margin: 40px 0;
+    font-weight: normal;
+  }
+  
+  .dream-cards-container {
+    display: grid;
+    gap: 20px;
+    padding: 20px 0;
+  }
+  
+  .dream-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  
+  .loading-message,
+  .no-dreams-message {
+    text-align: center;
+    color: #1E3D59;
+    padding: 20px;
+  }
+  
+  .no-dreams-message a {
+    color: #C4846C;
+    text-decoration: none;
+  }
+  
+  .no-dreams-message a:hover {
+    text-decoration: underline;
+  }

@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
 import './dream-capture-studio.css'
 import logo from './img/logo.png';
-import { DreamLibrary } from './components/library/DreamLibrary';
+import { LibraryPage } from './components/LibraryPage';
 import { useAuth } from './context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { db } from './config/firebase';
+import { Header } from './components/common/Header';
+
 import { 
   collection, 
   getDocs,
@@ -12,6 +14,9 @@ import {
   setDoc,
   getFirestore 
 } from 'firebase/firestore';
+import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Cloudinary } from '@cloudinary/url-gen';
 
 if (process.env.NODE_ENV === 'development') {
   const originalError = console.error;
@@ -20,6 +25,18 @@ if (process.env.NODE_ENV === 'development') {
     originalError.apply(console, args);
   };
 }
+
+// Initialize Cloudinary
+const cloudinary = new Cloudinary({
+  cloud: {
+    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+    apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY,
+    apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET
+  }
+});
+
+// Test the connection
+console.log('Cloudinary initialized with cloud name:', import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
 
 const DreamCaptureStudio: React.FC = () => {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -65,7 +82,7 @@ const DreamCaptureStudio: React.FC = () => {
   const [dreamTitle, setDreamTitle] = useState<string | null>(null);
 
   // Add new state for image
-  const [dreamImage, setDreamImage] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   // Add this state near your other state declarations
@@ -78,6 +95,7 @@ const DreamCaptureStudio: React.FC = () => {
     analysis: string;
     date: string;
     timestamp: string;
+    imageUrl: string;
   } | null>(null);
 
   // Add this with your other state declarations
@@ -495,7 +513,16 @@ const DreamCaptureStudio: React.FC = () => {
       setIsSaving(true);
       console.log('Starting save to library process');
 
-      // 1. Get user's locale and timezone info
+      // Generate and upload the image
+      console.log('Starting image generation');
+      const imageUrl = await generateDreamImage();
+      
+      if (!imageUrl) {
+        throw new Error('Failed to generate or upload image');
+      }
+      console.log('Successfully generated and uploaded image:', imageUrl);
+
+      // Get user's locale and timezone info
       const userLocale = navigator.language || 'en-US';
       const userDate = new Date();
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -504,48 +531,42 @@ const DreamCaptureStudio: React.FC = () => {
       console.log('User timezone:', userTimezone);
       console.log('Local date/time:', userDate.toString());
       
-      // 2. Format the date (MM-DD-YY)
+      // Format the date (MM-DD-YY)
       const formattedDate = userDate.toLocaleDateString(userLocale, {
         month: '2-digit',
         day: '2-digit',
         year: '2-digit',
         timeZone: userTimezone
-      }).replace(/[/\.]/g, '-');  // Replace slashes or dots with hyphens
+      }).replace(/[/\.]/g, '-');
       
       console.log('Formatted local date:', formattedDate);
+      console.log('Dream image before saving:', imageUrl);
 
-      // 3. Create the dream data object with all required fields
+      // Create dream data object with the permanent image URL
       const dreamData = {
         title: dreamTitle || 'Untitled Dream',
         transcript: transcript || '',
         analysis: analysis || '',
-        dreamImage: dreamImage || null,
+        imageUrl: imageUrl,
         date: formattedDate,
         timestamp: userDate.toISOString(),
-        userId: user.uid,  // This is important for the security rules
-        createdAt: userDate.getTime()      // Milliseconds since epoch for easy sorting
+        userId: user.uid,
+        createdAt: userDate.getTime()
       };
 
+      // Set current dream data
       setCurrentDreamData(dreamData);
-
       console.log('Dream data object created:', dreamData);
 
-      // Generate image before saving
-      console.log('Starting image generation');
-      await generateDreamImage();
-
-      // Dreams are saved to Firestore under the user's ID
+      // Save to Firestore
       const dreamRef = doc(collection(db, 'users', user.uid, 'dreams'));
       await setDoc(dreamRef, dreamData);
 
       console.log('Dream saved successfully with ID:', dreamRef.id);
 
-      // Update UI states
-      setShowAnalysis(false);
-      setShowLibrary(true);
-      setHasExistingDreams(true);
+      // Navigate to library page
+      navigate('/library');
 
-      // Continue with the rest of the save process...
     } catch (error) {
       console.error('Error saving dream:', error);
     } finally {
@@ -558,6 +579,7 @@ const DreamCaptureStudio: React.FC = () => {
     setIsGeneratingImage(true);
     
     try {
+      console.log('Starting DALL-E image generation...');
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: {
@@ -566,20 +588,49 @@ const DreamCaptureStudio: React.FC = () => {
         },
         body: JSON.stringify({
           model: "dall-e-3",
-          prompt: `Create a hyper-realistic photograph interpreting this dream: ${analysis}. Style: photorealistic, cinematic, high detail, dramatic lighting.`,
+          prompt: `Create a plain, realistic image interpreting this dream: ${analysis}. Style: photorealistic, cinematic, high detail, dramatic lighting.`,
           n: 1,
-          size: "1024x1024"
+          size: "1024x1024",
+          response_format: "b64_json"
         })
       });
 
       const data = await response.json();
-      setDreamImage(data.data[0].url);
-      console.log('Dream image generated:', data.data[0].url);
+      const base64Data = data.data[0].b64_json;
+      
+      // Upload to Cloudinary
+      const formData = new FormData();
+      formData.append('file', `data:image/png;base64,${base64Data}`);
+      formData.append('upload_preset', 'dream_images');
+      
+      console.log('Uploading to Cloudinary...');
+      const uploadResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
+
+      const imageData = await uploadResponse.json();
+      
+      if (!uploadResponse.ok) {
+        console.error('Cloudinary error:', imageData);
+        throw new Error(`Cloudinary upload failed: ${imageData.error?.message || 'Unknown error'}`);
+      }
+
+      console.log('Successfully uploaded to Cloudinary:', imageData);
+
+      const imageUrl = imageData.secure_url;
+      console.log('Setting image URL:', imageUrl); // Debug log
+      setImageUrl(imageUrl);
+      return imageUrl;
+
     } catch (error) {
-      console.error('Error generating image:', error);
+      console.error('Error in generateDreamImage:', error);
+      return null;
     } finally {
       setIsGeneratingImage(false);
-      //console.log('Image generation failed');
     }
   };
 
@@ -715,8 +766,15 @@ const DreamCaptureStudio: React.FC = () => {
     }
   }, [showLibrary, user]);
 
+  const navigate = useNavigate();
+
   return (
     <div className="dream-studio-container">
+      <Header 
+        hasExistingDreams={hasExistingDreams || showLibrary}
+        onLibraryClick={() => navigate('/library')}
+        onProfileClick={() => navigate('/profile')}
+      />
       <audio 
         ref={audioRef} 
         src={audioUrl || ''} 
@@ -726,13 +784,7 @@ const DreamCaptureStudio: React.FC = () => {
 
       {showDreamDetail ? (
         <div className="dream-detail-screen">
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons">
-             
-            </div>
-          </div>
-
+          
           <h1 className="dream-library-title">dream library</h1>
           
           <div className="dream-detail-content">
@@ -749,7 +801,7 @@ const DreamCaptureStudio: React.FC = () => {
               />
               <div className="dream-analysis-overlay">
                 <div className="analysis-label">Analysis generated:</div>
-                <div className="analysis-text">
+                <div className="analysis-text">e
                   {selectedDream?.analysis}
                 </div>
               </div>
@@ -768,14 +820,7 @@ const DreamCaptureStudio: React.FC = () => {
         </div>
       ) : showLibrary ? (
         <div className="library-screen">
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons">
-              <Link to="/library" className="library-link">
-                library
-              </Link>
-            </div>
-          </div>
+          
 
           <h1 className="library-title">dream library</h1>
 
@@ -787,14 +832,14 @@ const DreamCaptureStudio: React.FC = () => {
                   id: 1, // Add an ID if needed
                   title: currentDreamData.title,
                   date: currentDreamData.date,
-                  imageUrl: dreamImage || '', // Add the dreamImage state here
+                  imageUrl: currentDreamData.imageUrl || '', // Changed from dreamImage
                   transcript: currentDreamData.transcript,
                   analysis: currentDreamData.analysis
                 })}
               >
                 <div className="dream-card-image">
-                  {dreamImage ? (
-                    <img src={dreamImage} alt="Dream visualization" className="dream-image" />
+                  {currentDreamData.imageUrl ? (
+                    <img src={imageUrl} alt="Dream visualization" className="dream-image" />
                   ) : (
                     <div className="placeholder-x">
                       <div className="x-line1"></div>
@@ -812,12 +857,6 @@ const DreamCaptureStudio: React.FC = () => {
         </div>
       ) : showAnalysis ? (
         <div className="analysis-screen">
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons">
-              
-            </div>
-          </div>
 
           <h1 className="studio-title">dream analysis</h1>
           
@@ -847,12 +886,6 @@ const DreamCaptureStudio: React.FC = () => {
       ) : showTranscript ? (
         // Transcript screen
         <div className="transcript-screen">
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons">
-              
-            </div>
-          </div>
 
           <h1 className="studio-title studio-title-transcript">dream capture studio</h1>
           
@@ -893,16 +926,6 @@ const DreamCaptureStudio: React.FC = () => {
       ) : (
         // Recording screen
         <>
-          <div className="app-header">
-            <img src={logo} alt="Dream Factory" className="logo" />
-            <div className="header-icons">
-              {(hasExistingDreams || showLibrary) && (
-                <Link to="/library" className="library-link">
-                  library
-                </Link>
-              )}
-            </div>
-          </div>
 
           <h1 className="studio-title">dream capture studio</h1>
 

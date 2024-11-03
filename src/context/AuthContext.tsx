@@ -5,8 +5,9 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut,
+  signOut as firebaseSignOut,
   signInWithRedirect,
+  deleteUser,
   getRedirectResult
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -18,7 +19,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,8 +29,11 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => {},
   signIn: async () => {},
   signUp: async () => {},
-  logout: async () => {}
+  signOut: async () => {},
+  deleteAccount: async () => {}
 });
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -39,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);
+      console.log('Auth state changed:', user?.displayName);
     });
 
     return unsubscribe;
@@ -99,6 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signOut = async () => {  // Changed from 'logout' to 'signOut'
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -107,6 +121,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error logging out:', error);
       throw error;
     }
+  };
+
+  const deleteAccount = async () => {
+    if (!user) return;
+    try {
+      await deleteUser(user);
+      // You might want to also delete user data from Firestore here
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      throw error;
+    }
+  };
+
+  const value = {
+    user,
+    loading,
+    signOut,
+    deleteAccount,
   };
 
   return (
@@ -123,4 +155,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => useContext(AuthContext);

@@ -1,0 +1,44 @@
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    width: 100%;
+    max-width: 390px;
+    margin: 0 auto;
+  }
+  
+  /* Make this more specific to the header logo */
+  .app-header .logo-container {
+    flex: 0 1 auto;
+    padding-left: 0;
+    display: flex;
+    align-items: center;
+    text-align: left;  /* Override any inherited center alignment */
+  }
+  
+  .app-header .logo {
+    height: 48px;
+    width: auto;
+    display: block;  /* Ensure proper alignment */
+  }
+
+.header-icons {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.header-icon {
+  width: 42px;
+  height: 47px;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* For larger screens */
+@media (min-width: 391px) {
+  .app-header {
+    max-width: 390px;
+  }
+} 

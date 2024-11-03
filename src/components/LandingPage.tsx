@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import './LandingPage.css';
-
 import '../styles/shared.css';
+import { useNavigate } from 'react-router-dom';  // Add this import at the top
 
 export const LandingPage = () => {
+    const navigate = useNavigate(); 
   return (
     <div className="auth-container page-background">
       <div className="landing-content">

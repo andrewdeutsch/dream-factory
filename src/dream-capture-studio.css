@@ -87,12 +87,12 @@
     text-align: center;
   }
   
-  .app-header {
+  /* .app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 40px;
-  }
+  } */
   
   .logo {
     height: 48px;
@@ -816,5 +816,30 @@
   
   .x-line2 {
     transform: translate(-50%, -50%) rotate(-45deg);
+  }
+  
+  .library-link {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+  }
+  
+  .library-link:hover {
+    color: #ff6e40;  /* or whatever hover color you prefer */
+  }
+  
+  .library-link {
+    color: #1e3d59;
+    text-decoration: none;
+    font-size: 1.2rem;
+    transition: color 0.2s;
+  }
+  
+  .library-link:hover {
+    color: #ff6e40;
   }
    
