@@ -1,11 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap');
+
+.body {
+    font-family: 'Roboto', sans-serif;
+}
+
 .dream-studio-container {
     max-width: 390px;
+    width: 100%;
     margin: 0 auto;
     padding: 20px;
+    text-align: center;
   }
 .dream-detail-screen {
   padding: 20px;
-  max-width: 800px;
+  max-width: 390px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -13,28 +22,39 @@
     color: #C4846C;
     font-size: 24px;
     text-align: center;
-    margin: 40px 0 20px;
-    font-weight: normal;
+    margin: 40px 0 3px;
+    font-weight: 600;
+    width: 100%;
+    max-width: 390px;
 }
 
 .dream-detail-content {
-  margin-top: 20px;
-}
-
-.dream-detail-image-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+  
+  .dream-detail-image-container {
     position: relative;
     width: 100%;
-    aspect-ratio: 1;
-    margin: 20px 0;
     border-radius: 8px;
     overflow: hidden;
   }
 
-.dream-detail-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+  .dream-detail-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    display: block;
+  }
+  
+  /* Responsive adjustment for mobile */
+  @media (max-width: 768px) {
+    .dream-detail-image {
+      max-height: 300px;
+    }
+  }
 
 .dream-analysis-overlay {
     position: absolute;
@@ -42,21 +62,23 @@
     left: 0;
     right: 0;
     bottom: 0;
-    opacity: 80%;
-    background: rgba(255, 255, 255, 0.95);
+    opacity: 93%;
+    background: rgba(255, 255, 255, 1);
     padding: 20px;
     overflow-y: auto;
   }
 
-.dream-title-container {
+  .dream-title-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
     text-align: center;
-    margin-bottom: 20px;
   }
   
 .dream-title {
     color: #1E3D59;
     font-size: 18px;
-    font-weight: normal;
+    font-weight: 400;
     margin: 0;
 }
 
@@ -65,13 +87,14 @@
     font-size: 14px;
     display: block;
     margin-top: 5px;
+    margin-bottom: 15px;
 }
 
 .dream-analysis-overlay {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.97);
     padding: 20px;
-    border-radius: 8px;
     margin-top: 20px;
+    width: 100%;
 }
 
 .analysis-label {
@@ -80,28 +103,33 @@
 }
 
 .back-to-library {
-  margin-top: 20px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 20px;
-  background: #4a4a4a;
-  color: white;
-  cursor: pointer;
+    width: 100%;
+    max-width: 300px;
+    height: 60px;
+    background: #A74F2A;
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 40px;
+    text-transform: lowercase;
 }
 
 .back-to-library:hover {
-  background: #666;
+  background: #223967;
 }
 
 .app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-}
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    width: 100%;
+    max-width: 390px;
+    margin: 0 auto;
+  }
 
 .placeholder-image {
     width: 100%;
@@ -122,16 +150,20 @@
   width: auto;
 }
 
-.header-icons {
+/* .header-icons {
   display: flex;
   gap: 1.25rem;
   align-items: center;
-}
+} */
 
 .analysis-text {
-    color: #1E3D59;
-    line-height: 1.5;
-    font-size: 16px;
+    /* Match the width of the image */
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+    line-height: 1.6;
+    padding: 1rem 0;
   }
 
 .header-icon {

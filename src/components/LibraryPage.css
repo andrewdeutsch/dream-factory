@@ -1,3 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap');
+
+.body {
+    font-family: 'Roboto', sans-serif;
+}
 .dream-studio-container {
     max-width: 390px;
     margin: 0 auto;
@@ -8,7 +13,7 @@
     color: #C4846C;
     font-size: 24px;
     margin: 40px 0;
-    font-weight: normal;
+    font-weight: 600;
   }
   
   .dream-cards-container {

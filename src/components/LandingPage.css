@@ -50,8 +50,18 @@
 }
 
 .login-button {
-  background-color: #CCA169;
-  color: white;
+    width: 100%;
+    max-width: 300px;
+    height: 60px;
+    background: #A74F2A;
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 40px;
+    text-transform: lowercase;
 }
 
 .signup-button {
@@ -61,5 +71,12 @@
 
 .auth-button:hover {
   transform: translateY(-2px);
+  background-color: #1E3D59;
 }
 
+.logo-image {
+    max-width: 100%;
+    height: auto;
+    /* Adjust these values based on your desired logo size */
+    width: 300px;  
+  }

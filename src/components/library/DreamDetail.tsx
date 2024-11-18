@@ -70,13 +70,11 @@ export const DreamDetail: React.FC = () => {
         onProfileClick={() => navigate('/profile')}
       />
       
-      <h1 className="dream-library-title">dream library</h1>
-      
-      <div className="dream-detail-content">
-        <div className="dream-title-container">
-          <h2 className="dream-title">{dream.title}</h2>
-          <span className="dream-date">{dream.date}</span>
-        </div>
+      <h1 className="dream-library-title">{dream.title.replace(/['"]+/g, '')}</h1>
+    
+    <div className="dream-detail-content">
+      {/* Remove the dream title container since we moved it up */}
+      <span className="dream-date">{dream.date}</span>
 
         <div className="dream-detail-image-container">
           {dream.imageUrl ? (

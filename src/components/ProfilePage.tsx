@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Header } from './common/Header';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../config/firebase';
+import { db, auth } from '../config/firebase';
+import { signOut as firebaseSignOut } from 'firebase/auth';
 import { collection, getDocs } from 'firebase/firestore';
 import './ProfilePage.css';
 
@@ -32,6 +33,15 @@ export const ProfilePage: React.FC = () => {
     console.log('Cancel account clicked');
   };
 
+  const handleSignOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+      navigate('/login');  // Redirect to home page after signing out
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <div className="profile-container">
       <Header 
@@ -42,7 +52,7 @@ export const ProfilePage: React.FC = () => {
 
       <div className="profile-content">
         <h1 className="profile-greeting">
-          hi, {user?.displayName || 'dreamer'}
+            hi, {(user?.displayName || 'dreamer').toLowerCase()}
         </h1>
 
         <div className="profile-info">
@@ -60,6 +70,13 @@ export const ProfilePage: React.FC = () => {
             <span className="info-value">{dreamCount}</span>
           </div>
         </div>
+
+        <button 
+          className="sign-out-button"
+          onClick={handleSignOut}
+        >
+          sign out
+        </button>
 
         <button 
           className="cancel-account-button"

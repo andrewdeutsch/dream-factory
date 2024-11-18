@@ -6,6 +6,8 @@ import { useAuth } from './context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { db } from './config/firebase';
 import { Header } from './components/common/Header';
+import LoadingDots from './components/common/LoadingDots';
+
 
 import { 
   collection, 
@@ -55,6 +57,7 @@ const DreamCaptureStudio: React.FC = () => {
   const animationFrameRef = useRef<number>();
 
   const [hasRecorded, setHasRecorded] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
 
   const [transcript, setTranscript] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -100,6 +103,53 @@ const DreamCaptureStudio: React.FC = () => {
 
   // Add this with your other state declarations
   const [dreams, setDreams] = useState<any[]>([]);
+
+  const [isTranscriptOverflowing, setIsTranscriptOverflowing] = useState(false);
+  const [isAnalysisOverflowing, setIsAnalysisOverflowing] = useState(false);
+
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const analysisRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const checkOverflow = (element: HTMLDivElement | null) => {
+      if (!element) {
+        console.log('No element found');
+        return false;
+    }
+      const textContainer = element.querySelector('.transcript-text-container, .analysis-text-container');
+      if (!textContainer) return false;
+      
+      // Get the paragraph element
+      const textElement = textContainer.querySelector('.transcript-text, .analysis-text');
+      if (!textElement) return false;
+  
+      const isOverflowing = textElement.scrollHeight > textContainer.clientHeight;
+      
+      console.log('Overflow check:', {
+        textHeight: textElement.scrollHeight,
+        containerHeight: textContainer.clientHeight,
+        isOverflowing,
+        text: textElement.textContent
+    });
+    console.log('Overflow check:', {
+      textHeight: textElement.scrollHeight,
+      containerHeight: textContainer.clientHeight,
+      isOverflowing,
+      text: textElement.textContent
+    });
+      
+      return isOverflowing;
+    };
+  
+    // Add a small delay to ensure content is rendered
+    setTimeout(() => {
+      const transcriptOverflow = checkOverflow(transcriptRef.current);
+      const analysisOverflow = checkOverflow(analysisRef.current);
+      setIsTranscriptOverflowing(transcriptOverflow);
+      setIsAnalysisOverflowing(analysisOverflow);
+    }, 100);
+  }, [transcript, analysis, isExpanded]);
+    
 
   interface DreamEntry {
     id: number;
@@ -301,6 +351,9 @@ const DreamCaptureStudio: React.FC = () => {
 
   // Update handleRecordToggle to use the new setup
   const handleRecordToggle = () => {
+    // Clear any existing error when starting a new recording attempt
+    setRecordingError(null);
+
     if (hasRecorded && !isRecording) {
       handlePlayPause();
       return;
@@ -321,12 +374,72 @@ const DreamCaptureStudio: React.FC = () => {
             recorder.start(100); // Small chunks for better compatibility
             setIsRecording(true);
             chunksRef.current = [];
+          } else {
+            setRecordingError('Unable to start recording. Please check your microphone settings.');
           }
         })
-        .catch(err => console.error('Media stream error:', err));
+        .catch(err => {
+          console.error('Media stream error:', err);
+          let errorMessage = 'Unable to access microphone. ';
+          if (err.name === 'NotAllowedError') {
+            errorMessage += 'Please allow microphone access.';
+          } else if (err.name === 'NotFoundError') {
+            errorMessage += 'No microphone found.';
+          } else {
+            errorMessage += 'Please check your device settings.';
+          }
+          setRecordingError(errorMessage);
+          setIsRecording(false);
+        });
     }
   };
 
+  const handleRecordAgain = () => {
+    // Reset all relevant states
+    setIsRecording(true);
+    setHasRecorded(false);
+    setIsRecording(false);
+    setAudioUrl(null);
+    setAudioBlob(null);
+    setTranscript(null);
+    setShowTranscript(false);
+    
+    // Clean up audio resources
+    stopAllMediaTracks();
+    cleanupAudioNodes();
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+  
+    // Automatically start new recording
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        mediaStreamRef.current = stream;
+        setupAudioContext(stream);
+        
+        const recorder = setupRecorder(stream);
+        if (recorder) {
+          setMediaRecorder(recorder);
+          chunksRef.current = [];
+          recorder.start(100);
+        } else {
+          setRecordingError('Unable to start recording. Please check your microphone settings.');
+        }
+      })
+      .catch(err => {
+        console.error('Media stream error:', err);
+        let errorMessage = 'Unable to access microphone. ';
+        if (err.name === 'NotAllowedError') {
+          errorMessage += 'Please allow microphone access.';
+        } else if (err.name === 'NotFoundError') {
+          errorMessage += 'No microphone found.';
+        } else {
+          errorMessage += 'Please check your device settings.';
+        }
+        setRecordingError(errorMessage);
+        setIsRecording(false);
+      });
+  };
   const handleSaveDream = async () => {
     if (!audioBlob) {
       console.error('No audio recording found');
@@ -410,7 +523,7 @@ const DreamCaptureStudio: React.FC = () => {
             messages: [
               {
                 role: "system",
-                content: "Generate a concise 2-3 word title for this dream. Use simple, descriptive words. Avoid emotional or flowery language."
+                content: "Generate a concise 2-3 word title for this dream. Use simple, descriptive words. Avoid emotional or flowery language. Do not include any quotation marks in your response. Limit word count to 100."
               },
               {
                 role: "user",
@@ -436,7 +549,7 @@ const DreamCaptureStudio: React.FC = () => {
               },
               {
                 role: "user",
-                content: `Analyze this dream: ${transcript}`
+                content: `Analyze this dream: ${transcript}. Do not mention your neutrality as a dream interpreter`
               }
             ]
           })
@@ -463,7 +576,7 @@ const DreamCaptureStudio: React.FC = () => {
         throw new Error('Invalid response format from OpenAI');
       }
 
-      const title = titleData.choices[0].message.content;
+      const title = titleData.choices[0].message.content.replace(/['"]+/g, ''); 
       const analysisText = analysisData.choices[0].message.content;
 
       console.log('Title generated:', title);
@@ -496,7 +609,7 @@ const DreamCaptureStudio: React.FC = () => {
   }, []);
 
   // Add current date formatting
-  const getCurrentDate = () => {a
+  const getCurrentDate = () => {
     const date = new Date();
     return date.toLocaleDateString('en-US', {
       month: '2-digit',
@@ -653,16 +766,43 @@ const DreamCaptureStudio: React.FC = () => {
       if (isPlaying) {
         await audioRef.current.pause();
         setIsPlaying(false);
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
       } else {
         audioRef.current.src = audioUrl;
         await audioRef.current.load();
         await audioRef.current.play();
         setIsPlaying(true);
+        drawPlaybackWaveform();
       }
     } catch (err) {
       console.error('Playback error details:', err);
     }
   };
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.addEventListener('ended', () => {
+        setIsPlaying(false);
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+      });
+  
+      // Clean up on unmount
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.removeEventListener('ended', () => {
+            setIsPlaying(false);
+            if (animationFrameRef.current) {
+              cancelAnimationFrame(animationFrameRef.current);
+            }
+          });
+        }
+      };
+    }
+  }, [audioRef.current]);
 
   // Add this function near your other utility functions
   const stopAllMediaTracks = () => {
@@ -789,7 +929,7 @@ const DreamCaptureStudio: React.FC = () => {
           
           <div className="dream-detail-content">
             <div className="dream-title-container">
-              <h2 className="dream-title">"{selectedDream?.title}"</h2>
+              <h2 className="dream-title">{selectedDream?.title}</h2>
               <span className="dream-date">{selectedDream?.date}</span>
             </div>
 
@@ -801,7 +941,7 @@ const DreamCaptureStudio: React.FC = () => {
               />
               <div className="dream-analysis-overlay">
                 <div className="analysis-label">Analysis generated:</div>
-                <div className="analysis-text">e
+                <div className="analysis-text">
                   {selectedDream?.analysis}
                 </div>
               </div>
@@ -858,52 +998,41 @@ const DreamCaptureStudio: React.FC = () => {
       ) : showAnalysis ? (
         <div className="analysis-screen">
 
-          <h1 className="studio-title">dream analysis</h1>
-          
+          <h2 className="dream-analysis-title">{dreamTitle}</h2>           
+
           <div className="analysis-content">
-            <div className={`analysis-container ${isExpanded ? 'expanded' : ''}`}>
+          <div className={`analysis-container ${isExpanded ? 'expanded' : ''}`} ref={analysisRef}>
+
               <div className={`analysis-text-container ${isExpanded ? 'expanded' : ''}`}>
-                <h2 className="dream-title">{dreamTitle}</h2>
                 <p className="analysis-text">{analysis}</p>
               </div>
-              <span 
-                onClick={() => setIsExpanded(!isExpanded)} 
-                className="more-text"
-              >
-                {isExpanded ? 'less' : 'more'}
-              </span>
+              {(isAnalysisOverflowing || isExpanded) && (
+                <span 
+                  onClick={() => setIsExpanded(!isExpanded)} 
+                  className="more-text"
+                >
+                  {isExpanded ? 'less' : 'more'}
+                </span>
+              )}
+           
             </div>
-
-            <button 
+          </div>
+          <button 
               onClick={handleSaveToLibrary}
               className="library-button"
               disabled={isSaving}
             >
-              {isSaving ? 'saving...' : 'save to library'}
+              {isSaving ? <LoadingDots text="saving to library" /> : 'save dream to library'}
             </button>
-          </div>
         </div>
       ) : showTranscript ? (
         // Transcript screen
         <div className="transcript-screen">
 
-          <h1 className="studio-title studio-title-transcript">dream capture studio</h1>
+          {/* <h1 className="studio-title studio-title-transcript">dream capture studio</h1> */}
           
           <div className="transcript-content">
             <div className="transcript-label">transcript</div>
-            
-            <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`}>
-              <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
-                <p className="transcript-text">{transcript}</p>
-              </div>
-              <span 
-                onClick={() => setIsExpanded(!isExpanded)} 
-                className="more-text"
-              >
-                {isExpanded ? 'less' : 'more'}
-              </span>
-            </div>
-
             <div className="playback-controls">
               <button 
                 onClick={handlePlayPause}
@@ -913,13 +1042,28 @@ const DreamCaptureStudio: React.FC = () => {
                 {isPlaying ? '❚❚' : '▶'}
               </button>
             </div>
+            <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`} ref={transcriptRef}>
+              <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
+                <p className="transcript-text">{transcript}</p>
+              </div>
+              {(isTranscriptOverflowing || isExpanded) && 
+                <span 
+                  onClick={() => setIsExpanded(!isExpanded)} 
+                  className="more-text"
+                >
+                  {isExpanded ? 'less' : 'more'}
+                </span>
+              }
+            </div>
+
+            
 
             <button 
               onClick={() => analyzeDream(transcript || '')}
               className="analyze-button"
               disabled={isAnalyzing || !transcript}
             >
-              {isAnalyzing ? 'analyzing...' : 'analyze dream'}
+              {isAnalyzing ? <LoadingDots text="analyzing" /> : 'analyze dream'}
             </button>
           </div>
         </div>
@@ -927,7 +1071,7 @@ const DreamCaptureStudio: React.FC = () => {
         // Recording screen
         <>
 
-          <h1 className="studio-title">dream capture studio</h1>
+          {/* <h1 className="studio-title">dream capture studio</h1> */}
 
           {/* Waveform */}
           <div className={`waveform ${hasRecorded || isRecording ? 'recording' : ''}`}>
@@ -936,6 +1080,13 @@ const DreamCaptureStudio: React.FC = () => {
               className="waveform-canvas"
             />
           </div>
+
+          {/* Add error message here, before the controls */}
+        {recordingError && (
+          <div className="recording-error" role="alert">
+            {recordingError}
+          </div>
+        )}
 
           {/* Record Button and Status */}
           <div className={`controls-container ${hasRecorded || isRecording ? 'recording' : ''}`}>
@@ -952,43 +1103,40 @@ const DreamCaptureStudio: React.FC = () => {
               )}
             </button>
             <div className="status-text">
-              {isRecording ? 'Recording...' : 
-               isPlaying ? 'Playing...' :
+              {isRecording ? 'recording...' : 
+               isPlaying ? 'playing...' :
                hasRecorded ? 'tap to play' : 
-               'tap to record'}
+               'tap to catch your dream'}
             </div>
           </div>
 
-          {audioUrl && !isRecording && (
-            <button 
-              onClick={handlePlayPause}
-              //className={`playback-button ${isPlaying ? 'playing' : ''}`}
-            >
-              {/* {isPlaying ? 'Pause' : 'Play'} */}
-            </button>
-          )}
+         
 
           {hasRecorded && !isRecording && (
-            <button 
-              onClick={handleSaveDream}
-              className="save-button"
-              disabled={isTranscribing}
-            >
-              {isTranscribing ? 'transcribing...' : 'save dream'}
-            </button>
-          )}
-        </>
-      )}
+        <div className="recorded-actions-container">
+          <button 
+            onClick={handleSaveDream}
+            className="save-button"
+            disabled={isTranscribing}
+          >
+            {isTranscribing ? <LoadingDots text="transcribing" /> : 'transcribe dream'}
+          </button>
 
-      {/* <div className="auth-container">
-        {!user && (
-          <Link to="/signup" className="auth-button signup-button">
-            Sign Up
-          </Link>
-        )}
-      </div> */}
-    </div>
-  );
+          <div className="record-again-container">
+            <p className="record-again-text">did you miss anything?</p>
+            <button 
+              onClick={handleRecordAgain}
+              className="record-again-button"
+            >
+              record dream again
+            </button>
+          </div>
+        </div>
+      )}
+      </>
+    )}
+  </div>
+);
 };
 
 export default DreamCaptureStudio;

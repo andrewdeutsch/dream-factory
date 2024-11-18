@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useEffect } from 'react';
 import './Auth.css';
 import '../../styles/shared.css';
 
@@ -9,6 +11,8 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { signIn, signInWithGoogle } = useAuth();
+  const navigate = useNavigate(); 
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,49 +28,17 @@ export const Login = () => {
       <div className="auth-content">
         {/* Logo */}
         <div className="logo-container">
-          <span className="logo-text">
-            <span className="logo-dream">dream</span>
-            <span className="logo-factory">factory</span>
-          </span>
+            <img 
+            src="/Logo-large.png" 
+            alt="Dream Factory" 
+            className="logo-image"
+            />
         </div>
 
         {/* Sign In Form */}
         <div className="auth-form-container">
-          <h2>sign in to your account</h2>
-          
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-              />
-            </div>
-
-            <div className="forgot-password">
-              <Link to="/forgot-password">Forgot your password?</Link>
-            </div>
-
-            <button type="submit" className="auth-submit">
-              Sign In
-            </button>
-          </form>
-
-          <div className="divider">
-            <span>or</span>
-          </div>
+        <div className='headline-text'>catch,save and make sense of your dreams</div>
+          <div className='instructions-text'>sign in to your account</div>
 
           <img 
             src="branding_guideline_sample_lt_rd_lg.svg"

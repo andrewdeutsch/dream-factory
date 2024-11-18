@@ -67,7 +67,7 @@ const navigate = useNavigate();
 
       <div className="dream-cards-container">
         {isLoading ? (
-          <div className="loading-message">Loading dreams...</div>
+          <div className="loading-message">loading dreams...</div>
         ) : dreams.length > 0 ? (
           dreams.map((dream) => (
             <DreamCard

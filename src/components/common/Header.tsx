@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../img/logo.png';
-import './Header.css';  // Add this import
+import './Header.css';  
 
 
 interface HeaderProps {
@@ -33,14 +33,14 @@ export const Header: React.FC<HeaderProps> = ({
         {hasExistingDreams && console.log('Library icon should show')}
         {hasExistingDreams && (
           <img 
-            src="/library-icon.svg"
+            src="/library-icon.png"
             alt="Library" 
             className="library-icon"
             onClick={onLibraryClick}
           />
         )}
         <img 
-          src="/profile-icon.svg"
+          src="/profile-icon.png"
           alt="Profile" 
           className="profile-icon"
           onClick={onProfileClick}

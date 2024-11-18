@@ -26,15 +26,23 @@
 .header-icons {
   display: flex;
   gap: 0.75rem;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .header-icon {
-  width: 42px;
-  height: 47px;
   cursor: pointer;
   background: transparent;
+  align-items: flex-start;
 }
+
+.library-icon, .profile-icon {
+  width: 60px;
+  height: 90px;
+}
+/* .profile-icon {
+    width: 60px;
+    height: 90px;
+  } */
 
 /* For larger screens */
 @media (min-width: 391px) {

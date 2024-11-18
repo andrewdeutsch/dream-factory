@@ -19,7 +19,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<void>;  // Single sign-out method
   deleteAccount: () => Promise<void>;
 }
 
@@ -44,11 +44,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);
-      console.log('Auth state changed:', user?.displayName);
+      
+      if (user) {
+        // If logged in and on login/root, redirect to dreams
+        if (window.location.pathname === '/login' || window.location.pathname === '/') {
+          navigate('/dreams');
+        }
+      } else {
+        // If logged out, force redirect to root
+        if (window.location.pathname !== '/') {
+          navigate('/', { replace: true });
+        }
+      }
     });
 
     return unsubscribe;
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     getRedirectResult(auth)
@@ -105,23 +116,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async () => {  // Changed from 'logout' to 'signOut'
+  const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/');
-    } catch (error) {
-      console.error('Error logging out:', error);
       throw error;
     }
   };
+
 
   const deleteAccount = async () => {
     if (!user) return;
@@ -137,8 +141,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     user,
     loading,
-    signOut,
-    deleteAccount,
+    signInWithGoogle,
+    signIn,
+    signUp,
+    signOut,  // Use the single signOut method
+    deleteAccount
   };
 
   return (
@@ -148,8 +155,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signInWithGoogle,
       signIn,
       signUp,
-      logout
-    }}>
+      signOut,  // Use signOut instead of logout
+      deleteAccount
+      }}>
       {!loading && children}
     </AuthContext.Provider>
   );
