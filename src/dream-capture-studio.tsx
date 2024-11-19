@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, storageRef } from 'react'
 import './dream-capture-studio.css'
 import logo from './img/logo.png';
 import { LibraryPage } from './components/LibraryPage';
@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { db } from './config/firebase';
 import { Header } from './components/common/Header';
 import LoadingDots from './components/common/LoadingDots';
-
+type UploadType = 'audio' | 'image';
 
 import { 
   collection, 
@@ -19,14 +19,20 @@ import {
 import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Cloudinary } from '@cloudinary/url-gen';
+import { v4 as uuidv4 } from 'uuid';
+import SHA256 from 'crypto-js/sha256';
 
-if (process.env.NODE_ENV === 'development') {
-  const originalError = console.error;
-  console.error = (...args) => {
-    if (args[0]?.includes('chrome-extension://')) return;
-    originalError.apply(console, args);
-  };
-}
+  // Development error handling
+  if (process.env.NODE_ENV === 'development') {
+    const originalError = console.error;
+    console.error = (...args) => {
+      // Check if first argument is a string before calling includes
+      if (typeof args[0] === 'string' && args[0].includes('chrome-extension://')) {
+        return;
+      }
+      originalError.apply(console, args);
+    };
+  }
 
 // Initialize Cloudinary
 const cloudinary = new Cloudinary({
@@ -36,11 +42,85 @@ const cloudinary = new Cloudinary({
     apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET
   }
 });
+const getSecureUrl = (publicId: string, resourceType: 'video' | 'image') => {
+  const timestamp = Math.round(new Date().getTime() / 1000);
+  const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
+  
+  // Generate signature for retrieval
+  const signatureString = [
+    `public_id=${publicId}`,
+    `timestamp=${timestamp}`
+  ].join('&') + apiSecret;
+  
+  const signature = SHA256(signatureString).toString();
+  
+  return `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/${resourceType}/authenticated/${publicId}?timestamp=${timestamp}&signature=${signature}`;
+};
+
+// // Usage when displaying assets:
+// const audioUrl = getSecureUrl(publicId, 'video');
+// const imageUrl = getSecureUrl(imagePublicId, 'image');
 
 // Test the connection
 console.log('Cloudinary initialized with cloud name:', import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
 
 const DreamCaptureStudio: React.FC = () => {
+  const { user } = useAuth(); 
+
+  
+
+  const generateSecureUploadParams = (type: UploadType) => {
+    if (!user) throw new Error('No user authenticated');
+    const publicId = `${user.uid}_${uuidv4()}`;
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
+    const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;  
+    const folder = type === 'audio' ? 'dreams/audio' : 'dreams/images';
+
+    const uploadPreset = type === 'audio' 
+    ? import.meta.env.VITE_CLOUDINARY_AUDIO_PRESET 
+    : import.meta.env.VITE_CLOUDINARY_IMAGE_PRESET;
+
+  
+      // Log parameters used for signature (without exposing secrets)
+    console.log('Signature parameters:', {
+      timestamp,
+      uploadPreset,
+      hasApiSecret: !!apiSecret,
+      hasApiKey: !!apiKey,
+      publicId
+    });
+    
+    // Generate the signature
+    const signatureString = [
+      'access_mode=authenticated',
+      `folder=${folder}`,
+      `public_id=${publicId}`,
+      `timestamp=${timestamp}`,
+      'type=authenticated',
+      `upload_preset=${uploadPreset}`
+    ].join('&') + apiSecret;
+
+    const signature = SHA256(signatureString).toString();
+
+    console.log(`Generating ${type} upload parameters for folder:`, folder);
+
+    console.log('Generated secure params:', {
+      timestamp,
+      uploadPreset,
+      publicId,
+      signatureString: signatureString.replace(apiSecret, '[REDACTED]') // Log without exposing API secret
+    });
+    
+    return {
+      timestamp,
+      signature,
+      publicId,
+      apiKey,
+      folder,
+      uploadPreset
+    };
+  };
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
@@ -620,11 +700,107 @@ const DreamCaptureStudio: React.FC = () => {
 
   // Update the library button handler
   const handleSaveToLibrary = async () => {
-    if (!user) return;
+    if (!user || !audioBlob) return;
 
-    try {
-      setIsSaving(true);
-      console.log('Starting save to library process');
+  try {
+    setIsSaving(true);
+    console.log('Starting save to library process');
+    
+    const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams();
+
+    if (!apiKey) {
+      console.error('API Key is missing from environment variables');
+      throw new Error('Missing Cloudinary API key');
+    }
+
+
+    // Create a file from the blob with explicit extension
+    const audioFile = new File([audioBlob], 'audio.webm', { 
+      type: audioBlob.type || 'audio/webm;codecs=opus' 
+    });
+
+    // Debug log the upload parameters
+    console.log('Debug Info:', {
+      cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+      hasApiKey: !!import.meta.env.VITE_CLOUDINARY_API_KEY,
+      hasApiSecret: !!import.meta.env.VITE_CLOUDINARY_API_SECRET,
+      hasUploadPreset: !!import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+      timestamp,
+      signatureLength: signature?.length,
+      publicId,
+      audioType: audioBlob.type,
+      audioSize: audioBlob.size
+    });
+
+
+    // Create FormData for audio upload
+    const audioFormData = new FormData();
+    audioFormData.append('file', audioBlob);
+    audioFormData.append('api_key', apiKey);
+    audioFormData.append('timestamp', timestamp.toString());
+    audioFormData.append('signature', signature);
+    audioFormData.append('public_id', publicId);
+    audioFormData.append('folder', folder);
+    audioFormData.append('access_mode', 'authenticated');
+    audioFormData.append('type', 'authenticated');
+    audioFormData.append('upload_preset', uploadPreset);
+
+    console.log('FormData contents:', {
+      api_key: 'PRESENT',
+      file: 'BLOB',
+      upload_preset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+      timestamp,
+      signature: 'PRESENT',
+      public_id: publicId,
+      resource_type: 'video'
+    });
+
+    // Log the full URL being used
+    console.log('Upload URL:', `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`);
+
+    // Upload audio with secure parameters
+    const uploadResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`,
+      {
+        method: 'POST',
+        body: audioFormData
+      }
+    );
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('Upload failed with status:', uploadResponse.status);
+      console.error('Response headers:', Object.fromEntries([...uploadResponse.headers]));
+      console.error('Raw response:', errorText);
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('Error details:', {
+          error: errorJson.error,
+          message: errorJson.error?.message,
+          statusCode: uploadResponse.status
+        });
+      } catch (e) {
+        console.error('Could not parse error response as JSON');
+      }
+      
+      throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+    }
+
+    const audioData = await uploadResponse.json();
+    const secureAudioUrl = getSecureUrl(audioData.public_id, 'video');
+    console.log('Audio uploaded successfully:', secureAudioUrl);
+    
+    // Add these logs to debug the upload
+    console.log('Audio file type:', audioFile.type);
+    console.log('Audio file size:', audioFile.size);
+
+    //formData.append('file', audioBlob);
+    audioFormData.append('upload_preset', 'dream_audio'); // Create this preset in Cloudinary
+    
+
+
+
 
       // Generate and upload the image
       console.log('Starting image generation');
@@ -661,6 +837,7 @@ const DreamCaptureStudio: React.FC = () => {
         transcript: transcript || '',
         analysis: analysis || '',
         imageUrl: imageUrl,
+        audioUrl: audioUrl,
         date: formattedDate,
         timestamp: userDate.toISOString(),
         userId: user.uid,
@@ -701,7 +878,7 @@ const DreamCaptureStudio: React.FC = () => {
         },
         body: JSON.stringify({
           model: "dall-e-3",
-          prompt: `Create a plain, realistic image interpreting this dream: ${analysis}. Style: photorealistic, cinematic, high detail, dramatic lighting.`,
+          prompt: `Create a plain, realistic image interpreting this dream: ${analysis}. Style: photorealistic, soft, even lighting, natural tones, minimal shadows, with a calm and balanced atmosphere.`,
           n: 1,
           size: "1024x1024",
           response_format: "b64_json"
@@ -712,11 +889,43 @@ const DreamCaptureStudio: React.FC = () => {
       const base64Data = data.data[0].b64_json;
       
       // Upload to Cloudinary
+      const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams();
+      
+      console.log('Upload configuration:', {
+        preset: uploadPreset,
+        folder,
+        cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+        hasApiKey: !!apiKey
+      });
+
+      console.log('Image upload parameters:', {
+        folder,
+        uploadPreset,
+        hasApiKey: !!apiKey,
+        timestamp
+      });
+
+      if (!apiKey) {
+        throw new Error('Missing Cloudinary API key');
+      }
+
       const formData = new FormData();
       formData.append('file', `data:image/png;base64,${base64Data}`);
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', timestamp.toString());
+      formData.append('signature', signature);
+      formData.append('public_id', publicId);
+      formData.append('folder', folder); 
+      formData.append('type', 'authenticated'); 
+      formData.append('access_mode', 'authenticated');
       formData.append('upload_preset', 'dream_images');
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`;
+      console.log('Uploading to:', uploadUrl);
+      console.log('Upload URL:', `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`);
+      console.log('FormData keys:', Array.from(formData.keys()));
+
       
-      console.log('Uploading to Cloudinary...');
       const uploadResponse = await fetch(
         `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
         {
@@ -769,8 +978,15 @@ const DreamCaptureStudio: React.FC = () => {
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
-      } else {
-        audioRef.current.src = audioUrl;
+      } else {  
+
+        if (!audioUrl) {
+          const url = URL.createObjectURL(audioBlob);
+          setAudioUrl(url);
+          audioRef.current.src = url;
+        }
+
+        // audioRef.current.src = audioUrl;
         await audioRef.current.load();
         await audioRef.current.play();
         setIsPlaying(true);
@@ -846,7 +1062,6 @@ const DreamCaptureStudio: React.FC = () => {
     setShowDreamDetail(true);
   };
 
-  const { user } = useAuth();
 
   const [hasExistingDreams, setHasExistingDreams] = useState(false);
 
@@ -1032,16 +1247,19 @@ const DreamCaptureStudio: React.FC = () => {
           {/* <h1 className="studio-title studio-title-transcript">dream capture studio</h1> */}
           
           <div className="transcript-content">
-            <div className="transcript-label">transcript</div>
+            <div className="transcript-label">transcript
+
             <div className="playback-controls">
-              <button 
-                onClick={handlePlayPause}
-                className="play-button-large"
-                disabled={!audioRef.current || !audioUrl}
-              >
-                {isPlaying ? '❚❚' : '▶'}
-              </button>
+            <img 
+              src={isPlaying ? "/audio-icon-on.png" : "/audio-icon-off.png"}
+              alt="Play/Pause"
+              className="audio-icon"
+              onClick={handlePlayPause}
+            style={{ cursor: 'pointer' }}
+              />
             </div>
+            </div>
+            
             <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`} ref={transcriptRef}>
               <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
                 <p className="transcript-text">{transcript}</p>

@@ -8,6 +8,7 @@
 }
 
 .library-title {
+  text-transform: lowercase;
   color: #CD7F32;
   font-size: 1.5rem;
   margin: 2rem 0;
@@ -73,6 +74,7 @@
 }
 
 .dream-card-title {
+  text-transform: lowercase;
   color: #1E3D59;
   font-size: 1rem;
   margin: 0;

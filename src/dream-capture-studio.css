@@ -3,37 +3,41 @@
 .body {
     font-family: 'Roboto', sans-serif;
 }
+
+.audio-icon {
+  width: 24px;  /* Adjust size as needed */
+  height: 24px;
+  transition: opacity 0.2s ease;
+}
+
   
-  .waveform-static {
-    margin: 40px 0;
-    height: 100px;
-  }
+
   
-  .analysis-content {
+  /* .analysis-content {
     border-radius: 12px;
     margin: 20px 0;
     font-weight: 400;
     text-align: left;
     
-  }
+  } */
   
   .analysis-title {
     color: #CCA169;
     font-size: 24px;
     font-weight: 600;
-    margin: 2rem 0;
+    margin: 1.2rem 0;
     text-transform: lowercase;
   }
   
   .analysis-text {
-    /* background: #FFF8F6; */
+    background: #FFF8F6;
     border-radius: 12px;
     padding: 24px;
     margin: 20px 0;
     color: #1E3D59;
     font-size: 16px;
     font-weight: 400;
-    line-height: 1.6;
+    line-height: 1.5;
   }
   
   .more-button {
@@ -207,8 +211,10 @@
     right: 0;
     opacity: 1;
     height: 185px;  /* Changed from 170px to 70% of viewport height */
-    width: 100%;
+    width: 100vw;
     transform-origin: center;
+    margin-left: calc(-50vw + 50%);  
+    margin-right: calc(-50vw + 50%); 
   }
     
     .controls-container.recording .waveform {
@@ -240,6 +246,11 @@
     width: 100%;
     height: 100%;
     /* object-fit: contain; */
+  }
+
+  .waveform-static {
+    margin: 40px 0;
+    height: 100px;
   }
   
   .controls-container {
@@ -333,7 +344,7 @@
     color: #1E3D59;
     font-size: 16px;
     font-weight: 400;
-    line-height: 1.6;
+    line-height: 1.5;
   }
   
   .analyze-button, .library-button, .save-button {
@@ -522,7 +533,7 @@
     color: #CCA169;
     font-size: 24px;
     font-weight: 600;
-    margin: 2rem 0;
+    margin: 1.2rem 0;
     text-transform: lowercase;
   }
   
@@ -561,12 +572,12 @@
     color: #1E3D59;
   }
   
-  .transcript-text {
+  /* .transcript-text {
     font-size: 18px;
     line-height: 1.5;
     color: #333;
     margin-bottom: 40px;
-  }
+  } */
   
   .transcript-controls {
     padding: 0 24px;
@@ -576,7 +587,6 @@
     right: 0;
   }
   
-  .back-button,
   .analyze-button {
     width: 100%;
     max-width: 300px;
@@ -591,11 +601,11 @@
     margin-top: 40px;
     text-transform: lowercase;
   }
-  
+/*   
   .back-button {
     background: #E6E6E6;
     color: #333;
-  }
+  } */
   
   /* .analyze-button {
     background: #1E3D59;
@@ -605,10 +615,11 @@
   .transcript-container {
     background-color: #FFF5F5;
     border-radius: 12px;
-    padding: 1.5rem;
-    width: 100%;
-    margin-bottom: 1rem;
+    padding: 1.2rem;
+    width: 65vw;
     position: relative;
+    margin-bottom: 1rem;
+    
 }
   
 .transcript-text-container {
@@ -638,13 +649,13 @@
 
 
   
-  .transcript-text {
+  /* .transcript-text {
     color: #1E3D59;
     line-height: 1.6;
     margin: 0;
     padding: 0.5em;
   }
-  
+   */
 
 
   .transcript-container:not(.expanded) .transcript-text-container:not([style*="overflow: hidden"]) + .more-text,
@@ -713,23 +724,25 @@
   .transcript-label {
     color: #CCA169;
     font-size: 24px;
+    display: flex;
     font-weight: 600;
-    margin: 2rem 0;
+    margin: 1.2rem 0;
     text-transform: lowercase;
   }
   
   
-  .transcript-text {
+  /* .transcript-text {
     color: #1E3D59;
     line-height: 1.6;
     margin: 0;
-  }
+  } */
   
   .playback-controls {
     display: flex;
     justify-content: center;
-    width: 100%;
-    margin-bottom: 1rem;
+    align-items: center;
+    margin: 0 10px;
+    /* margin: 20px 0; */
   }
   
   .play-button-large {
@@ -780,18 +793,20 @@
   }
   
   .analysis-content {
-    border-radius: 12px;
-    padding: 24px;
-    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 390px;
+    margin: 0 auto;
+    padding: 0 1rem;
   }
   
   .analysis-container {
     background-color: #FFF5F5;
     border-radius: 12px;
-    padding: 1.5rem;
-    width: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    padding: 1.2rem;
+    width: 65vw;
     margin-bottom: 1rem;
     position: relative;
   }
@@ -849,6 +864,8 @@
     padding-left: 4px;
     z-index: 1;
     display: none;
+    margin-left: 10px;  
+    margin-top: 10px;
   }
   
   /* .library-button {
@@ -877,7 +894,8 @@
   .library-title {
     color: #CCA169;
     font-size: 24px;
-    margin: 2rem 0;
+    font-weight: 600;
+    margin: 1.2rem 0;
     text-transform: lowercase;
   }
   
@@ -919,9 +937,12 @@
   }
   
   .dream-card-title {
+    text-transform: lowercase;
+    color: #1E3D59;
+    font-size: 1rem;
     margin: 0;
-    font-size: 1.2rem;
-    color: #333;
+    font-weight: 500;
+    text-transform: lowercase;
   }
   
   .dream-card-date {

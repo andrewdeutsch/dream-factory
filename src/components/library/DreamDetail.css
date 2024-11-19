@@ -1,15 +1,181 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap');
 
 .body {
-    font-family: 'Roboto', sans-serif;
+  font-family: 'Roboto', sans-serif;
+}
+
+.analysis-container {
+  background-color: #FFF5F5;
+  border-radius: 12px;
+  padding: 1.2rem;
+  width: 113%;
+  max-width: 800px;
+  margin: 20px auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+
+.dream-analysis-text-container {
+  position: relative;
+  margin: 5px auto;
+}
+
+
+
+.more-text {
+  position: absolute;
+  bottom: -24px;
+  right: 0;
+  color: #CCA169;
+  cursor: pointer;
+  background: transparent;
+  padding-left: 4px;
+  z-index: 1;
+  display: block;
+  margin-left: 10px;
+  margin-top: 10px;
+}
+
+.analysis-text {
+  background: #FFF8F6;
+  position: relative;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+  color: #1E3D59;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-wrap; /* Added to ensure text wrapping */
+  word-wrap: break-word; /* Added to ensure text wrapping */
+}
+
+
+
+
+.analysis-label {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.audio-icon {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  margin-left: -8px;
+  vertical-align: middle;
+}
+
+.back-to-library {
+    width: 100%;
+    max-width: 300px;
+    height: 60px;
+    background: #A74F2A;
+    border: none;
+    border-radius: 30px;
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 40px;
+    text-transform: lowercase;
+}
+
+.back-to-library:hover {
+  background: #223967;
+}
+
+.back-button {
+  color: #A74F2A;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 600;
+  font-size: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  margin-top: 0px;
+  display: flex;
+  left: 20px;           /* Added */
+}
+
+
+.delete-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.delete-modal {
+  background: white;
+  padding: 2em;
+  border-radius: 8px;
+  text-align: center;
+  max-width: 90%;
+  width: 400px;
+}
+
+.delete-modal h2 {
+  color: #4a4a4a;
+  margin-bottom: 1.5em;
+}
+
+.delete-modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1em;
+}
+
+.delete-confirm-button,
+.delete-cancel-button {
+  padding: 0.5em 2em;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 1em;
+  text-transform: lowercase;
+}
+
+.delete-confirm-button {
+  background-color: #B36A5E;
+  color: white;
+}
+
+.delete-cancel-button {
+  background-color: #B36A5E;
+  color: white;
+}
+
+.delete-confirm-button:hover,
+.delete-cancel-button:hover {
+  opacity: 0.9;
+}
+
+.dream-card-title {
+  text-transform: lowercase;
+  color: #1E3D59;
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 500;
+  text-transform: lowercase;
 }
 
 .dream-studio-container {
     max-width: 390px;
-    width: 100%;
+    padding: 1.2rem;
+    width: 65vw;
     margin: 0 auto;
     padding: 20px;
     text-align: center;
+    position: relative; 
   }
 .dream-detail-screen {
   padding: 20px;
@@ -19,18 +185,23 @@
 }
 
 .dream-library-title {
+    text-transform: lowercase;
     color: #C4846C;
     font-size: 24px;
     text-align: center;
-    margin: 40px 0 3px;
     font-weight: 600;
+    font-family: 'Roboto', sans-serif;
     width: 100%;
+    margin: 10px 0 0px;
     max-width: 390px;
 }
 
 .dream-detail-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
-    max-width: 800px;
+    max-width: 390px;
     margin: 0 auto;
     padding: 0 1rem;
   }
@@ -56,16 +227,11 @@
     }
   }
 
-.dream-analysis-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    opacity: 93%;
-    background: rgba(255, 255, 255, 1);
-    padding: 20px;
-    overflow-y: auto;
+  .dream-analysis {
+      background: rgba(255, 255, 255, 0.97);
+      padding: 10px;
+      width: 100%;
+      text-align: center;
   }
 
   .dream-title-container {
@@ -76,10 +242,13 @@
   }
   
 .dream-title {
+    text-transform: lowercase;
     color: #1E3D59;
+    font-family: 'Roboto', sans-serif;
     font-size: 18px;
     font-weight: 400;
     margin: 0;
+    margin-top: 80px;
 }
 
 .dream-date {
@@ -90,36 +259,22 @@
     margin-bottom: 15px;
 }
 
-.dream-analysis-overlay {
-    background: rgba(255, 255, 255, 0.97);
-    padding: 20px;
-    margin-top: 20px;
-    width: 100%;
+.option-button {
+  color: #223967;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 15px 12px;
 }
 
-.analysis-label {
-  font-weight: bold;
-  margin-bottom: 10px;
+.option-button.active {
+  text-decoration: underline;
 }
 
-.back-to-library {
-    width: 100%;
-    max-width: 300px;
-    height: 60px;
-    background: #A74F2A;
-    border: none;
-    border-radius: 30px;
-    color: white;
-    font-size: 24px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 40px;
-    text-transform: lowercase;
-}
 
-.back-to-library:hover {
-  background: #223967;
-}
 
 .app-header {
     display: flex;
@@ -150,21 +305,7 @@
   width: auto;
 }
 
-/* .header-icons {
-  display: flex;
-  gap: 1.25rem;
-  align-items: center;
-} */
 
-.analysis-text {
-    /* Match the width of the image */
-    width: 100%;
-    max-width: 800px;
-    margin: 0 auto;
-    text-align: center;
-    line-height: 1.6;
-    padding: 1rem 0;
-  }
 
 .header-icon {
   width: 24px;
@@ -172,3 +313,4 @@
   cursor: pointer;
   background: transparent;
 } 
+
