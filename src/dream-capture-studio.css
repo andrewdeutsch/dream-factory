@@ -7,6 +7,7 @@
 .audio-icon {
   width: 24px;  /* Adjust size as needed */
   height: 24px;
+  opacity: 0.8;
   transition: opacity 0.2s ease;
 }
 
@@ -99,12 +100,6 @@
     text-align: center;
   }
   
-  /* .app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 40px;
-  } */
   
   .logo {
     height: 48px;
@@ -741,7 +736,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 10px;
+    padding-top: 4px;
+    margin: 0 18px;
     /* margin: 20px 0; */
   }
   

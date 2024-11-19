@@ -1346,7 +1346,7 @@ const DreamCaptureStudio: React.FC = () => {
               onClick={handleRecordAgain}
               className="record-again-button"
             >
-              record dream again
+              record again
             </button>
           </div>
         </div>
