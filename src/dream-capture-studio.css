@@ -340,8 +340,49 @@
     font-size: 16px;
     font-weight: 400;
     line-height: 1.5;
+    width: 100%;
+    text-align: center;
   }
   
+  .transcript-edit-area {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px;
+    margin-top: 38px;
+    margin-bottom: 38px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    resize: vertical;
+    background-color: white;
+    text-align: center;
+    position: relative; /* Ensure proper positioning */
+  }
+  
+  .transcript-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  
+  .edit-button {
+    position: absolute;
+    top: 20px;
+    text-decoration: underline;
+    right: 20px;
+    background: none;
+    padding: 8px 24px;
+    border: none;
+    color: #2a547a;;
+    cursor: pointer;
+    font-size: 14px;
+    text-transform: lowercase;
+    min-width: unset; /* Remove fixed width */
+  }
+  
+ 
   .analyze-button, .library-button, .save-button {
     width: 100%;
     max-width: 300px;
@@ -614,23 +655,37 @@
     width: 65vw;
     position: relative;
     margin-bottom: 1rem;
+    text-align: center;
     
 }
   
 .transcript-text-container {
   position: relative;
   transition: max-height 0.3s ease;
-  max-height: 150px; /* Adjust as needed */
-  overflow: hidden;
+  justify-content: center;
+  width: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  /* transition: max-height 0.3s ease; Smooth transition for height changes */
+
   /* Add fade effect at bottom */
-  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  /* mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%); */
 }
-  
-  .transcript-text-container:not(.expanded) {
-    max-height: calc(1.6em * 5); /* Height for 5 lines */
-    overflow: hidden;
+
+  .transcript-text-container.editing {
+    max-height: none !important; /* Override any existing height limits */
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
   }
+  .transcript-text-container.editing::after {
+    display: none;
+  }
+  
+  /* .transcript-text-container:not(.expanded) {
+    max-height: calc(1.6em * 5); /* Height for 5 lines 
+    overflow: hidden;
+  } */
   .more-text:not(.expanded) {
     display: block;
   }

@@ -143,6 +143,18 @@ const DreamCaptureStudio: React.FC = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState<string>('');
+
+  const handleEditClick = () => {
+    setIsEditing(true);
+    setEditedTranscript(transcript || '');
+  };
+  const handleSaveEdit = () => {
+    setTranscript(editedTranscript);
+    setIsEditing(false);
+  };
+
   const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -1261,21 +1273,37 @@ const DreamCaptureStudio: React.FC = () => {
             </div>
             
             <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`} ref={transcriptRef}>
+            <div className="transcript-actions">
+              <button 
+                onClick={isEditing ? handleSaveEdit : handleEditClick}
+                className="edit-button"
+              >
+                {isEditing ? 'save' : 'edit'}
+              </button>
               <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
+              {isEditing ? (
+                  <textarea
+                    className="transcript-edit-area"
+                    value={editedTranscript}
+                    onChange={(e) => setEditedTranscript(e.target.value)}
+                    autoFocus
+                  />
+                ) : (
                 <p className="transcript-text">{transcript}</p>
+              )}
               </div>
-              {(isTranscriptOverflowing || isExpanded) && 
+              {/* {(isTranscriptOverflowing || isExpanded) && 
                 <span 
                   onClick={() => setIsExpanded(!isExpanded)} 
                   className="more-text"
                 >
                   {isExpanded ? 'less' : 'more'}
                 </span>
-              }
+              } */}
             </div>
-
             
-
+            
+            </div>
             <button 
               onClick={() => analyzeDream(transcript || '')}
               className="analyze-button"
@@ -1283,7 +1311,8 @@ const DreamCaptureStudio: React.FC = () => {
             >
               {isAnalyzing ? <LoadingDots text="analyzing" /> : 'analyze dream'}
             </button>
-          </div>
+          
+        </div>
         </div>
       ) : (
         // Recording screen
