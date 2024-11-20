@@ -241,7 +241,37 @@ const DreamCaptureStudio: React.FC = () => {
       setIsAnalysisOverflowing(analysisOverflow);
     }, 100);
   }, [transcript, analysis, isExpanded]);
-    
+
+  // useEffect(() => {
+  //   const textarea = document.querySelector('.transcript-edit-area');
+  //   if (textarea) {
+  //     // Reset height first
+  //     textarea.style.height = '0px';
+  //     // Then set to scrollHeight
+  //     textarea.style.height = textarea.scrollHeight + 'px';
+  //   }
+  // }, [editedTranscript]);
+
+  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditedTranscript(e.target.value);
+    requestAnimationFrame(() => adjustHeight(e.target));
+  };
+  
+  const adjustHeight = (element: HTMLTextAreaElement) => {
+    element.style.height = '0';  // Collapse to get the right scrollHeight
+    const scrollHeight = element.scrollHeight;
+    element.style.height = `${scrollHeight}px`;
+  };
+  
+  // Add this effect to handle initial height adjustment when editing starts
+  useEffect(() => {
+    if (isEditing) {
+      const textarea = document.querySelector('.transcript-edit-area') as HTMLTextAreaElement;
+      if (textarea) {
+        requestAnimationFrame(() => adjustHeight(textarea));
+      }
+    }
+  }, [isEditing, editedTranscript]);
 
   interface DreamEntry {
     id: number;
@@ -1283,11 +1313,11 @@ const DreamCaptureStudio: React.FC = () => {
               <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
               {isEditing ? (
                   <textarea
-                    className="transcript-edit-area"
-                    value={editedTranscript}
-                    onChange={(e) => setEditedTranscript(e.target.value)}
-                    autoFocus
-                  />
+                  className="transcript-edit-area"
+                  value={editedTranscript}
+                  onChange={handleTextAreaChange}
+                  autoFocus
+                />
                 ) : (
                 <p className="transcript-text">{transcript}</p>
               )}
