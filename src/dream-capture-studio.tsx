@@ -1251,12 +1251,20 @@ const DreamCaptureStudio: React.FC = () => {
               </div>
             )}
           </div>
+          
         </div>
+        
       ) : showAnalysis ? (
         <div className="analysis-screen">
 
           <h2 className="dream-analysis-title">{dreamTitle}</h2>           
-
+          <button 
+              onClick={handleSaveToLibrary}
+              className="library-button"
+              disabled={isSaving}
+            >
+              {isSaving ? <LoadingDots text="saving to library" /> : 'save dream to library'}
+            </button>
           <div className="analysis-content">
           <div className={`analysis-container ${isExpanded ? 'expanded' : ''}`} ref={analysisRef}>
 
@@ -1274,13 +1282,6 @@ const DreamCaptureStudio: React.FC = () => {
            
             </div>
           </div>
-          <button 
-              onClick={handleSaveToLibrary}
-              className="library-button"
-              disabled={isSaving}
-            >
-              {isSaving ? <LoadingDots text="saving to library" /> : 'save dream to library'}
-            </button>
         </div>
       ) : showTranscript ? (
         // Transcript screen
@@ -1299,9 +1300,17 @@ const DreamCaptureStudio: React.FC = () => {
               onClick={handlePlayPause}
             style={{ cursor: 'pointer' }}
               />
-            </div>
+            
             </div>
             
+            </div>
+            <button 
+              onClick={() => analyzeDream(transcript || '')}
+              className="analyze-button"
+              disabled={isAnalyzing || !transcript}
+            >
+              {isAnalyzing ? <LoadingDots text="analyzing" /> : 'analyze dream'}
+            </button>
             <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`} ref={transcriptRef}>
             <div className="transcript-actions">
               <button 
@@ -1334,13 +1343,13 @@ const DreamCaptureStudio: React.FC = () => {
             
             
             </div>
-            <button 
+            {/* <button 
               onClick={() => analyzeDream(transcript || '')}
               className="analyze-button"
               disabled={isAnalyzing || !transcript}
             >
               {isAnalyzing ? <LoadingDots text="analyzing" /> : 'analyze dream'}
-            </button>
+            </button> */}
           
         </div>
         </div>
@@ -1401,13 +1410,14 @@ const DreamCaptureStudio: React.FC = () => {
 
           <div className="record-again-container">
             <p className="record-again-text">did you miss anything?</p>
-            <button 
+            
+          </div>
+          <button 
               onClick={handleRecordAgain}
               className="record-again-button"
             >
               record again
             </button>
-          </div>
         </div>
       )}
       </>

@@ -60,8 +60,8 @@
 }
 
 .audio-icon {
-  width: 15px;
-  height: 15px;
+  width: 19px;
+  height: 19px;
   cursor: pointer;
   margin-left: -8px;
   vertical-align: middle;
@@ -266,7 +266,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 15px 12px;
+  padding: 15px 18px;
 }
 
 .option-button.active {
