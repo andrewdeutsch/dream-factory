@@ -924,6 +924,7 @@ const DreamCaptureStudio: React.FC = () => {
           prompt: `Create a plain, realistic image interpreting this dream: ${analysis}. Style: photorealistic, soft, even lighting, natural tones, minimal shadows, with a calm and balanced atmosphere.`,
           n: 1,
           size: "1024x1024",
+          quality: "hd",
           response_format: "b64_json"
         })
       });
