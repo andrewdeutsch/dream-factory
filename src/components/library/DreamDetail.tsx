@@ -23,14 +23,34 @@ export const DreamDetail: React.FC = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isAnalysisOverflowing, setIsAnalysisOverflowing] = useState(false);
     const analysisRef = useRef<HTMLDivElement | null>(null);  
-    const toggleAudio = () => {
-      if (audioRef.current) {
+    const [audioBlob, setAudioBlob] = useState<string | null>(null);
+    const [isAudioLoading, setIsAudioLoading] = useState(false);  
+
+
+    const toggleAudio = async () => {
+      if (!audioRef.current || isAudioLoading) return;
+    
+      try {
+        setIsAudioLoading(true);
+        console.log('Current audio src:', audioRef.current.src);
+        console.log('Audio ready state:', audioRef.current.readyState);
+        
         if (isPlaying) {
-          audioRef.current.pause();
+          await audioRef.current.pause();
+          setIsPlaying(false);
         } else {
-          audioRef.current.play();
+          // Load the audio if it hasn't been loaded
+          if (audioRef.current.readyState === 0) {
+            await audioRef.current.load();
+          }
+          await audioRef.current.play();
+          setIsPlaying(true);
         }
-        setIsPlaying(!isPlaying);
+      } catch (error) {
+        console.error('Error playing audio:', error);
+        setIsPlaying(false);
+      } finally {
+        setIsAudioLoading(false);
       }
     };
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -76,6 +96,37 @@ export const DreamDetail: React.FC = () => {
         fetchDream();
       }, [dreamId, user]);
 
+        // useEffect(() => {
+        //   if (dream?.audioUrl) {
+        //     console.log('Original audio URL:', dream.audioUrl);
+            
+        
+        //     // Fetch the audio file and create a blob URL
+        //     fetch(dream.audioUrl)
+        //       .then(response => {
+        //         if (!response.ok) {
+        //           throw new Error(`HTTP error! status: ${response.status}`);
+        //         }
+        //         return response.blob();
+        //       })
+        //       .then(blob => {
+        //         const blobUrl = URL.createObjectURL(blob);
+        //         console.log('Created blob URL:', blobUrl);
+        //         setAudioBlob(blobUrl);
+        //       })
+        //       .catch(error => {
+        //         console.error('Error creating blob URL:', error);
+        //       });
+        //   }
+        
+        //   // Cleanup function to revoke blob URL
+        //   return () => {
+        //     if (audioBlob) {
+        //       URL.revokeObjectURL(audioBlob);
+        //     }
+        //   };
+        // }, [dream?.audioUrl]); 
+
       useEffect(() => {
         const checkOverflow = (element: HTMLDivElement | null) => {
           if (!element) return false;
@@ -96,8 +147,8 @@ export const DreamDetail: React.FC = () => {
       }, [dream?.analysis, isExpanded]);
 
       console.log('Current view:', activeView);
-      console.log('Dream transcript:', dream?.transcript);
-      console.log('Dream analysis:', dream?.analysis);
+      //console.log('Dream transcript:', dream?.transcript);
+      //console.log('Dream analysis:', dream?.analysis);
 
   if (isLoading) {
     return <div>Loading dream details...</div>;
@@ -138,7 +189,7 @@ export const DreamDetail: React.FC = () => {
               <span>✨ Dream Recorded ✨</span>
               console.log
               <img src={placeholderImage} alt="Placeholder" />
-              console.log('placeholder image loaded')
+              {/* console.log('placeholder image loaded') */}
             </div>
           )}
           {/* Add toggle options */}
@@ -155,23 +206,31 @@ export const DreamDetail: React.FC = () => {
             >
               transcript
             </button>
-            {dream.audioUrl && (
+            {/* {dream.audioUrl && (
             <>
-            <img 
-              src={isPlaying ? "/audio-icon-on.png" : "/audio-icon-off.png"}
-              alt="Toggle audio"
-              className="audio-icon"
-              onClick={toggleAudio}
-            />
-            <audio 
-              ref={audioRef}
-              src={dream.audioUrl}
-              onEnded={() => setIsPlaying(false)}
-              style={{ display: 'none' }}
-            />
-          </>
-            
-          )}
+              <img 
+                src={isPlaying ? "/audio-icon-on.png" : "/audio-icon-off.png"}
+                alt="Toggle audio"
+                className="audio-icon"
+                onClick={toggleAudio}
+                style={{ 
+                  cursor: isAudioLoading ? 'wait' : 'pointer',
+                  opacity: isAudioLoading ? 0.5 : 1 
+                }}
+              />
+              <audio 
+                ref={audioRef}
+                src={audioBlob || undefined}
+                onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                  console.error('Audio error:', e);
+                  console.log('Audio URL:', audioBlob);
+                  setIsPlaying(false);
+                }}
+                style={{ display: 'none' }}
+              />
+            </>
+          )} */}
           <button 
             className="option-button"
             onClick={() => setShowDeleteModal(true)}

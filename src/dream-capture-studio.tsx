@@ -278,6 +278,7 @@ const DreamCaptureStudio: React.FC = () => {
     title: string;
     date: string;
     imageUrl: string;
+    audioUrl?: string; 
     transcript: string;
     analysis: string;
   }
@@ -1100,6 +1101,7 @@ const DreamCaptureStudio: React.FC = () => {
 
   // Add handler for dream card selection
   const handleDreamSelect = (dream: DreamEntry) => {
+    
     setSelectedDream(dream);
     setShowDreamDetail(true);
   };
@@ -1412,7 +1414,7 @@ const DreamCaptureStudio: React.FC = () => {
             <p className="record-again-text">did you miss anything?</p>
             
           </div>
-          
+          <button className="record-again-button">record again</button>
         </div>
       )}
       </>
