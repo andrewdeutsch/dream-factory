@@ -1412,12 +1412,7 @@ const DreamCaptureStudio: React.FC = () => {
             <p className="record-again-text">did you miss anything?</p>
             
           </div>
-          <button 
-              onClick={handleRecordAgain}
-              className="record-again-button"
-            >
-              record again
-            </button>
+          
         </div>
       )}
       </>
