@@ -7,14 +7,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { db } from './config/firebase';
 import { Header } from './components/common/Header';
 import LoadingDots from './components/common/LoadingDots';
+import { GoogleGenAI } from '@google/genai';
 type UploadType = 'audio' | 'image';
 
-import { 
-  collection, 
+import {
+  collection,
   getDocs,
   doc,
   setDoc,
-  getFirestore 
+  getFirestore
 } from 'firebase/firestore';
 import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -22,17 +23,17 @@ import { Cloudinary } from '@cloudinary/url-gen';
 import { v4 as uuidv4 } from 'uuid';
 import SHA256 from 'crypto-js/sha256';
 
-  // Development error handling
-  if (process.env.NODE_ENV === 'development') {
-    const originalError = console.error;
-    console.error = (...args) => {
-      // Check if first argument is a string before calling includes
-      if (typeof args[0] === 'string' && args[0].includes('chrome-extension://')) {
-        return;
-      }
-      originalError.apply(console, args);
-    };
-  }
+// Development error handling
+if (process.env.NODE_ENV === 'development') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    // Check if first argument is a string before calling includes
+    if (typeof args[0] === 'string' && args[0].includes('chrome-extension://')) {
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
 
 // Initialize Cloudinary
 const cloudinary = new Cloudinary({
@@ -45,15 +46,15 @@ const cloudinary = new Cloudinary({
 const getSecureUrl = (publicId: string, resourceType: 'video' | 'image') => {
   const timestamp = Math.round(new Date().getTime() / 1000);
   const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
-  
+
   // Generate signature for retrieval
   const signatureString = [
     `public_id=${publicId}`,
     `timestamp=${timestamp}`
   ].join('&') + apiSecret;
-  
+
   const signature = SHA256(signatureString).toString();
-  
+
   return `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/${resourceType}/authenticated/${publicId}?timestamp=${timestamp}&signature=${signature}`;
 };
 
@@ -65,24 +66,24 @@ const getSecureUrl = (publicId: string, resourceType: 'video' | 'image') => {
 console.log('Cloudinary initialized with cloud name:', import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
 
 const DreamCaptureStudio: React.FC = () => {
-  const { user } = useAuth(); 
+  const { user } = useAuth();
 
-  
+
 
   const generateSecureUploadParams = (type: UploadType) => {
     if (!user) throw new Error('No user authenticated');
     const publicId = `${user.uid}_${uuidv4()}`;
     const timestamp = Math.round(new Date().getTime() / 1000);
     const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
-    const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;  
+    const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
     const folder = type === 'audio' ? 'dreams/audio' : 'dreams/images';
 
-    const uploadPreset = type === 'audio' 
-    ? import.meta.env.VITE_CLOUDINARY_AUDIO_PRESET 
-    : import.meta.env.VITE_CLOUDINARY_IMAGE_PRESET;
+    const uploadPreset = type === 'audio'
+      ? import.meta.env.VITE_CLOUDINARY_AUDIO_PRESET
+      : import.meta.env.VITE_CLOUDINARY_IMAGE_PRESET;
 
-  
-      // Log parameters used for signature (without exposing secrets)
+
+    // Log parameters used for signature (without exposing secrets)
     console.log('Signature parameters:', {
       timestamp,
       uploadPreset,
@@ -90,7 +91,7 @@ const DreamCaptureStudio: React.FC = () => {
       hasApiKey: !!apiKey,
       publicId
     });
-    
+
     // Generate the signature
     const signatureString = [
       'access_mode=authenticated',
@@ -111,7 +112,7 @@ const DreamCaptureStudio: React.FC = () => {
       publicId,
       signatureString: signatureString.replace(apiSecret, '[REDACTED]') // Log without exposing API secret
     });
-    
+
     return {
       timestamp,
       signature,
@@ -156,6 +157,7 @@ const DreamCaptureStudio: React.FC = () => {
   };
 
   const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -207,32 +209,32 @@ const DreamCaptureStudio: React.FC = () => {
       if (!element) {
         console.log('No element found');
         return false;
-    }
+      }
       const textContainer = element.querySelector('.transcript-text-container, .analysis-text-container');
       if (!textContainer) return false;
-      
+
       // Get the paragraph element
       const textElement = textContainer.querySelector('.transcript-text, .analysis-text');
       if (!textElement) return false;
-  
+
       const isOverflowing = textElement.scrollHeight > textContainer.clientHeight;
-      
+
       console.log('Overflow check:', {
         textHeight: textElement.scrollHeight,
         containerHeight: textContainer.clientHeight,
         isOverflowing,
         text: textElement.textContent
-    });
-    console.log('Overflow check:', {
-      textHeight: textElement.scrollHeight,
-      containerHeight: textContainer.clientHeight,
-      isOverflowing,
-      text: textElement.textContent
-    });
-      
+      });
+      console.log('Overflow check:', {
+        textHeight: textElement.scrollHeight,
+        containerHeight: textContainer.clientHeight,
+        isOverflowing,
+        text: textElement.textContent
+      });
+
       return isOverflowing;
     };
-  
+
     // Add a small delay to ensure content is rendered
     setTimeout(() => {
       const transcriptOverflow = checkOverflow(transcriptRef.current);
@@ -256,13 +258,13 @@ const DreamCaptureStudio: React.FC = () => {
     setEditedTranscript(e.target.value);
     requestAnimationFrame(() => adjustHeight(e.target));
   };
-  
+
   const adjustHeight = (element: HTMLTextAreaElement) => {
     element.style.height = '0';  // Collapse to get the right scrollHeight
     const scrollHeight = element.scrollHeight;
     element.style.height = `${scrollHeight}px`;
   };
-  
+
   // Add this effect to handle initial height adjustment when editing starts
   useEffect(() => {
     if (isEditing) {
@@ -278,7 +280,7 @@ const DreamCaptureStudio: React.FC = () => {
     title: string;
     date: string;
     imageUrl: string;
-    audioUrl?: string; 
+    audioUrl?: string;
     transcript: string;
     analysis: string;
   }
@@ -319,7 +321,7 @@ const DreamCaptureStudio: React.FC = () => {
 
   const drawWaveform = () => {
     if (!canvasRef.current || !analyserRef.current) return;
-    
+
     const canvas = canvasRef.current;
     const canvasCtx = canvas.getContext('2d');
     if (!canvasCtx) return;
@@ -330,7 +332,7 @@ const DreamCaptureStudio: React.FC = () => {
 
     const draw = () => {
       animationFrameRef.current = requestAnimationFrame(draw);
-      
+
       analyser.getByteTimeDomainData(dataArray);
 
       canvasCtx.fillStyle = '#1E3D59';
@@ -420,7 +422,7 @@ const DreamCaptureStudio: React.FC = () => {
   const setupRecorder = (stream: MediaStream) => {
     try {
       const options = getRecordingOptions();
-      const recorder = options 
+      const recorder = options
         ? new MediaRecorder(stream, options)
         : new MediaRecorder(stream);
 
@@ -454,7 +456,7 @@ const DreamCaptureStudio: React.FC = () => {
         }
 
         const url = URL.createObjectURL(blob);
-        
+
         // Set up audio element
         if (audioRef.current) {
           audioRef.current.src = url;
@@ -490,7 +492,7 @@ const DreamCaptureStudio: React.FC = () => {
         .then(stream => {
           mediaStreamRef.current = stream;
           setupAudioContext(stream);
-          
+
           const recorder = setupRecorder(stream);
           if (recorder) {
             setMediaRecorder(recorder);
@@ -526,20 +528,20 @@ const DreamCaptureStudio: React.FC = () => {
     setAudioBlob(null);
     setTranscript(null);
     setShowTranscript(false);
-    
+
     // Clean up audio resources
     stopAllMediaTracks();
     cleanupAudioNodes();
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
     }
-  
+
     // Automatically start new recording
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         mediaStreamRef.current = stream;
         setupAudioContext(stream);
-        
+
         const recorder = setupRecorder(stream);
         if (recorder) {
           setMediaRecorder(recorder);
@@ -575,7 +577,7 @@ const DreamCaptureStudio: React.FC = () => {
     try {
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
-      
+
       reader.onload = async () => {
         try {
           const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -599,7 +601,7 @@ const DreamCaptureStudio: React.FC = () => {
 
           const data = await response.json();
           console.log('Received transcript:', data.text);
-          
+
           // Update states in correct order
           setTranscript(data.text);
           setIsTranscribing(false);
@@ -631,7 +633,7 @@ const DreamCaptureStudio: React.FC = () => {
     try {
       setIsAnalyzing(true);
       console.log('Making API calls to OpenAI...');
-      
+
       // Make both API calls in parallel
       const [titleResponse, analysisResponse] = await Promise.all([
         // Title generation
@@ -655,7 +657,7 @@ const DreamCaptureStudio: React.FC = () => {
             ]
           })
         }),
-        
+
         // Analysis generation
         fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -680,7 +682,7 @@ const DreamCaptureStudio: React.FC = () => {
       ]);
 
       console.log('Responses received from OpenAI');
-      
+
       // Check if responses are ok
       if (!titleResponse.ok || !analysisResponse.ok) {
         throw new Error('API response not ok');
@@ -699,7 +701,7 @@ const DreamCaptureStudio: React.FC = () => {
         throw new Error('Invalid response format from OpenAI');
       }
 
-      const title = titleData.choices[0].message.content.replace(/['"]+/g, ''); 
+      const title = titleData.choices[0].message.content.replace(/['"]+/g, '');
       const analysisText = analysisData.choices[0].message.content;
 
       console.log('Title generated:', title);
@@ -710,7 +712,7 @@ const DreamCaptureStudio: React.FC = () => {
       setAnalysis(analysisText);
       setShowTranscript(false);
       setShowAnalysis(true);
-      
+
     } catch (error) {
       console.error('Analysis/Title generation error:', error);
       setAnalysis('Unable to analyze dream at this time. Please try again later.');
@@ -745,102 +747,102 @@ const DreamCaptureStudio: React.FC = () => {
   const handleSaveToLibrary = async () => {
     if (!user || !audioBlob) return;
 
-  try {
-    setIsSaving(true);
-    console.log('Starting save to library process');
-    
-    const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams('audio');
+    try {
+      setIsSaving(true);
+      console.log('Starting save to library process');
 
-    if (!apiKey) {
-      console.error('API Key is missing from environment variables');
-      throw new Error('Missing Cloudinary API key');
-    }
+      const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams('audio');
 
-
-    // Create a file from the blob with explicit extension
-    const audioFile = new File([audioBlob], 'audio.webm', { 
-      type: audioBlob.type || 'audio/webm;codecs=opus' 
-    });
-
-    // Debug log the upload parameters
-    console.log('Debug Info:', {
-      cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
-      hasApiKey: !!import.meta.env.VITE_CLOUDINARY_API_KEY,
-      hasApiSecret: !!import.meta.env.VITE_CLOUDINARY_API_SECRET,
-      hasUploadPreset: !!import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
-      timestamp,
-      signatureLength: signature?.length,
-      publicId,
-      audioType: audioBlob.type,
-      audioSize: audioBlob.size
-    });
-
-
-    // Create FormData for audio upload
-    const audioFormData = new FormData();
-    audioFormData.append('file', audioBlob);
-    audioFormData.append('api_key', apiKey);
-    audioFormData.append('timestamp', timestamp.toString());
-    audioFormData.append('signature', signature);
-    audioFormData.append('public_id', publicId);
-    audioFormData.append('folder', folder);
-    audioFormData.append('access_mode', 'authenticated');
-    audioFormData.append('type', 'authenticated');
-    audioFormData.append('upload_preset', uploadPreset);
-
-    console.log('FormData contents:', {
-      api_key: 'PRESENT',
-      file: 'BLOB',
-      upload_preset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
-      timestamp,
-      signature: 'PRESENT',
-      public_id: publicId,
-      resource_type: 'video'
-    });
-
-    // Log the full URL being used
-    console.log('Upload URL:', `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`);
-
-    // Upload audio with secure parameters
-    const uploadResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`,
-      {
-        method: 'POST',
-        body: audioFormData
+      if (!apiKey) {
+        console.error('API Key is missing from environment variables');
+        throw new Error('Missing Cloudinary API key');
       }
-    );
 
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('Upload failed with status:', uploadResponse.status);
-      console.error('Response headers:', Object.fromEntries([...uploadResponse.headers]));
-      console.error('Raw response:', errorText);
-      
-      try {
-        const errorJson = JSON.parse(errorText);
-        console.error('Error details:', {
-          error: errorJson.error,
-          message: errorJson.error?.message,
-          statusCode: uploadResponse.status
-        });
-      } catch (e) {
-        console.error('Could not parse error response as JSON');
+
+      // Create a file from the blob with explicit extension
+      const audioFile = new File([audioBlob], 'audio.webm', {
+        type: audioBlob.type || 'audio/webm;codecs=opus'
+      });
+
+      // Debug log the upload parameters
+      console.log('Debug Info:', {
+        cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+        hasApiKey: !!import.meta.env.VITE_CLOUDINARY_API_KEY,
+        hasApiSecret: !!import.meta.env.VITE_CLOUDINARY_API_SECRET,
+        hasUploadPreset: !!import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+        timestamp,
+        signatureLength: signature?.length,
+        publicId,
+        audioType: audioBlob.type,
+        audioSize: audioBlob.size
+      });
+
+
+      // Create FormData for audio upload
+      const audioFormData = new FormData();
+      audioFormData.append('file', audioBlob);
+      audioFormData.append('api_key', apiKey);
+      audioFormData.append('timestamp', timestamp.toString());
+      audioFormData.append('signature', signature);
+      audioFormData.append('public_id', publicId);
+      audioFormData.append('folder', folder);
+      audioFormData.append('access_mode', 'authenticated');
+      audioFormData.append('type', 'authenticated');
+      audioFormData.append('upload_preset', uploadPreset);
+
+      console.log('FormData contents:', {
+        api_key: 'PRESENT',
+        file: 'BLOB',
+        upload_preset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+        timestamp,
+        signature: 'PRESENT',
+        public_id: publicId,
+        resource_type: 'video'
+      });
+
+      // Log the full URL being used
+      console.log('Upload URL:', `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`);
+
+      // Upload audio with secure parameters
+      const uploadResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/video/upload`,
+        {
+          method: 'POST',
+          body: audioFormData
+        }
+      );
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('Upload failed with status:', uploadResponse.status);
+        console.error('Response headers:', Object.fromEntries([...uploadResponse.headers]));
+        console.error('Raw response:', errorText);
+
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('Error details:', {
+            error: errorJson.error,
+            message: errorJson.error?.message,
+            statusCode: uploadResponse.status
+          });
+        } catch (e) {
+          console.error('Could not parse error response as JSON');
+        }
+
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
       }
-      
-      throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
-    }
 
-    const audioData = await uploadResponse.json();
-    const secureAudioUrl = getSecureUrl(audioData.public_id, 'video');
-    console.log('Audio uploaded successfully:', secureAudioUrl);
-    
-    // Add these logs to debug the upload
-    console.log('Audio file type:', audioFile.type);
-    console.log('Audio file size:', audioFile.size);
+      const audioData = await uploadResponse.json();
+      const secureAudioUrl = getSecureUrl(audioData.public_id, 'video');
+      console.log('Audio uploaded successfully:', secureAudioUrl);
 
-    //formData.append('file', audioBlob);
-    audioFormData.append('upload_preset', 'dream_audio'); // Create this preset in Cloudinary
-    
+      // Add these logs to debug the upload
+      console.log('Audio file type:', audioFile.type);
+      console.log('Audio file size:', audioFile.size);
+
+      //formData.append('file', audioBlob);
+      audioFormData.append('upload_preset', 'dream_audio'); // Create this preset in Cloudinary
+
 
 
 
@@ -848,7 +850,7 @@ const DreamCaptureStudio: React.FC = () => {
       // Generate and upload the image
       console.log('Starting image generation');
       const imageUrl = await generateDreamImage();
-      
+
       if (!imageUrl) {
         throw new Error('Failed to generate or upload image');
       }
@@ -858,11 +860,11 @@ const DreamCaptureStudio: React.FC = () => {
       const userLocale = navigator.language || 'en-US';
       const userDate = new Date();
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      
+
       console.log('User locale:', userLocale);
       console.log('User timezone:', userTimezone);
       console.log('Local date/time:', userDate.toString());
-      
+
       // Format the date (MM-DD-YY)
       const formattedDate = userDate.toLocaleDateString(userLocale, {
         month: '2-digit',
@@ -870,7 +872,7 @@ const DreamCaptureStudio: React.FC = () => {
         year: '2-digit',
         timeZone: userTimezone
       }).replace(/[/\.]/g, '-');
-      
+
       console.log('Formatted local date:', formattedDate);
       console.log('Dream image before saving:', imageUrl);
 
@@ -907,72 +909,66 @@ const DreamCaptureStudio: React.FC = () => {
     }
   };
 
-  const requestDreamImageBase64 = async (model: string, promptText: string) => {
+  const requestDreamImageBase64 = async (promptText: string) => {
     try {
-      const response = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model,
-          prompt: promptText,
-          n: 1,
-          size: '1024x1024',
-          response_format: 'b64_json'
-        })
-      });
-
-      const responseBody = await response.json().catch((jsonError) => {
-        console.error('Failed to parse OpenAI response JSON', jsonError);
-        return null;
-      });
-
-      if (!response.ok) {
-        console.error('OpenAI image generation failed:', {
-          model,
-          status: response.status,
-          body: responseBody
-        });
+      if (!GEMINI_API_KEY) {
+        console.error('Gemini API key not found');
         return null;
       }
 
-      const base64Data = responseBody?.data?.[0]?.b64_json;
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+      console.log('Generating image with Gemini Imagen 4...');
+
+      const response = await ai.models.generateImages({
+        model: 'imagen-4.0-generate-001',
+        prompt: promptText,
+        config: {
+          numberOfImages: 1,
+        },
+      });
+
+      // Get the image data from the response
+      if (!response.generatedImages || response.generatedImages.length === 0) {
+        console.error('Gemini response missing generated images');
+        return null;
+      }
+
+      const generatedImage = response.generatedImages[0];
+      if (!generatedImage.image || !generatedImage.image.imageBytes) {
+        console.error('Gemini response missing image bytes');
+        return null;
+      }
+
+      const base64Data = generatedImage.image.imageBytes;
       if (!base64Data) {
-        console.error('OpenAI response missing b64_json data', responseBody);
+        console.error('Gemini response missing base64 data');
         return null;
       }
 
       return base64Data;
     } catch (error) {
-      console.error('Error fetching image from OpenAI', { model, error });
+      console.error('Error fetching image from Gemini', { error });
       return null;
     }
   };
 
   const generateDreamImage = async () => {
     setIsGeneratingImage(true);
-    
+
     const promptAnalysis = analysis?.trim() || 'a freshly recorded dream description';
     const promptText = `Create a plain, realistic image interpreting this dream: ${promptAnalysis}. Style: photorealistic, soft, even lighting, natural tones, minimal shadows, with a calm and balanced atmosphere.`;
-    const imageModels = ['dall-e-3.1', 'dall-e-3'];
 
     try {
-      let base64Data: string | null = null;
-      for (const model of imageModels) {
-        base64Data = await requestDreamImageBase64(model, promptText);
-        if (base64Data) break;
-        console.warn(`Model ${model} did not return valid image data, trying next available model.`);
-      }
+      const base64Data = await requestDreamImageBase64(promptText);
 
       if (!base64Data) {
-        throw new Error('No OpenAI image model returned usable data.');
+        throw new Error('Gemini Imagen 4 did not return usable image data.');
       }
-      
+
       // Upload to Cloudinary
       const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams('image');
-      
+
       console.log('Upload configuration:', {
         preset: uploadPreset,
         folder,
@@ -990,8 +986,8 @@ const DreamCaptureStudio: React.FC = () => {
       formData.append('timestamp', timestamp.toString());
       formData.append('signature', signature);
       formData.append('public_id', publicId);
-      formData.append('folder', folder); 
-      formData.append('type', 'authenticated'); 
+      formData.append('folder', folder);
+      formData.append('type', 'authenticated');
       formData.append('access_mode', 'authenticated');
       formData.append('upload_preset', uploadPreset);
 
@@ -1008,7 +1004,7 @@ const DreamCaptureStudio: React.FC = () => {
       );
 
       const imageData = await uploadResponse.json();
-      
+
       if (!uploadResponse.ok) {
         console.error('Cloudinary error:', imageData);
         throw new Error(`Cloudinary upload failed: ${imageData.error?.message || 'Unknown error'}`);
@@ -1054,7 +1050,7 @@ const DreamCaptureStudio: React.FC = () => {
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
-      } else {  
+      } else {
 
         if (!audioUrl) {
           const url = URL.createObjectURL(audioBlob);
@@ -1081,7 +1077,7 @@ const DreamCaptureStudio: React.FC = () => {
           cancelAnimationFrame(animationFrameRef.current);
         }
       });
-  
+
       // Clean up on unmount
       return () => {
         if (audioRef.current) {
@@ -1134,7 +1130,7 @@ const DreamCaptureStudio: React.FC = () => {
 
   // Add handler for dream card selection
   const handleDreamSelect = (dream: DreamEntry) => {
-    
+
     setSelectedDream(dream);
     setShowDreamDetail(true);
   };
@@ -1146,13 +1142,13 @@ const DreamCaptureStudio: React.FC = () => {
     try {
       console.log('Checking dreams for user:', userId);
       console.log('Auth state:', user);  // Add this to check auth state
-      
+
       const dreamsRef = collection(db, 'users', userId, 'dreams');
       console.log('Dreams reference created');
-      
+
       const dreamSnapshot = await getDocs(dreamsRef);
       console.log('Got dreams snapshot:', dreamSnapshot);
-      
+
       setHasExistingDreams(!dreamSnapshot.empty);
       console.log('User has dreams:', !dreamSnapshot.empty);
     } catch (error) {
@@ -1172,7 +1168,7 @@ const DreamCaptureStudio: React.FC = () => {
   }, [user]);
   const fetchDreams = async () => {
     if (!user) return;
-    
+
     try {
       const dreamsRef = collection(db, 'users', user.uid, 'dreams');
       const dreamSnapshot = await getDocs(dreamsRef);
@@ -1182,7 +1178,7 @@ const DreamCaptureStudio: React.FC = () => {
       }));
       // Sort dreams by timestamp, newest first
       dreams.sort((a, b) => b.createdAt - a.createdAt);
-      
+
       // Set the dreams in state to display them
       setDreams(dreams);
     } catch (error) {
@@ -1202,23 +1198,23 @@ const DreamCaptureStudio: React.FC = () => {
 
   return (
     <div className="dream-studio-container">
-      <Header 
+      <Header
         hasExistingDreams={hasExistingDreams || showLibrary}
         onLibraryClick={() => navigate('/library')}
         onProfileClick={() => navigate('/profile')}
       />
-      <audio 
-        ref={audioRef} 
-        src={audioUrl || ''} 
+      <audio
+        ref={audioRef}
+        src={audioUrl || ''}
         preload="auto"
         onError={(e) => console.error('Audio element error:', e)}
       />
 
       {showDreamDetail ? (
         <div className="dream-detail-screen">
-          
+
           <h1 className="dream-library-title">dream library</h1>
-          
+
           <div className="dream-detail-content">
             <div className="dream-title-container">
               <h2 className="dream-title">{selectedDream?.title}</h2>
@@ -1226,9 +1222,9 @@ const DreamCaptureStudio: React.FC = () => {
             </div>
 
             <div className="dream-detail-image-container">
-              <img 
-                src={selectedDream?.imageUrl} 
-                alt="Dream visualization" 
+              <img
+                src={selectedDream?.imageUrl}
+                alt="Dream visualization"
                 className="dream-detail-image"
               />
               <div className="dream-analysis-overlay">
@@ -1240,7 +1236,7 @@ const DreamCaptureStudio: React.FC = () => {
             </div>
           </div>
 
-          <button 
+          <button
             className="back-to-library"
             onClick={() => {
               setShowDreamDetail(false);
@@ -1252,13 +1248,13 @@ const DreamCaptureStudio: React.FC = () => {
         </div>
       ) : showLibrary ? (
         <div className="library-screen">
-          
+
 
           <h1 className="library-title">dream library</h1>
 
           <div className="dream-cards-container">
             {currentDreamData && (
-              <div 
+              <div
                 className="dream-card"
                 onClick={() => handleDreamSelect({
                   id: 1, // Add an ID if needed
@@ -1286,35 +1282,35 @@ const DreamCaptureStudio: React.FC = () => {
               </div>
             )}
           </div>
-          
+
         </div>
-        
+
       ) : showAnalysis ? (
         <div className="analysis-screen">
 
-          <h2 className="dream-analysis-title">{dreamTitle}</h2>           
-          <button 
-              onClick={handleSaveToLibrary}
-              className="library-button"
-              disabled={isSaving}
-            >
-              {isSaving ? <LoadingDots text="saving to library" /> : 'save dream to library'}
-            </button>
+          <h2 className="dream-analysis-title">{dreamTitle}</h2>
+          <button
+            onClick={handleSaveToLibrary}
+            className="library-button"
+            disabled={isSaving}
+          >
+            {isSaving ? <LoadingDots text="saving to library" /> : 'save dream to library'}
+          </button>
           <div className="analysis-content">
-          <div className={`analysis-container ${isExpanded ? 'expanded' : ''}`} ref={analysisRef}>
+            <div className={`analysis-container ${isExpanded ? 'expanded' : ''}`} ref={analysisRef}>
 
               <div className={`analysis-text-container ${isExpanded ? 'expanded' : ''}`}>
                 <p className="analysis-text">{analysis}</p>
               </div>
               {(isAnalysisOverflowing || isExpanded) && (
-                <span 
-                  onClick={() => setIsExpanded(!isExpanded)} 
+                <span
+                  onClick={() => setIsExpanded(!isExpanded)}
                   className="more-text"
                 >
                   {isExpanded ? 'less' : 'more'}
                 </span>
               )}
-           
+
             </div>
           </div>
         </div>
@@ -1323,23 +1319,23 @@ const DreamCaptureStudio: React.FC = () => {
         <div className="transcript-screen">
 
           {/* <h1 className="studio-title studio-title-transcript">dream capture studio</h1> */}
-          
+
           <div className="transcript-content">
             <div className="transcript-label">transcript
 
-            <div className="playback-controls">
-            <img 
-              src={isPlaying ? "/audio-icon-on.png" : "/audio-icon-off.png"}
-              alt="Play/Pause"
-              className="audio-icon"
-              onClick={handlePlayPause}
-            style={{ cursor: 'pointer' }}
-              />
-            
+              <div className="playback-controls">
+                <img
+                  src={isPlaying ? "/audio-icon-on.png" : "/audio-icon-off.png"}
+                  alt="Play/Pause"
+                  className="audio-icon"
+                  onClick={handlePlayPause}
+                  style={{ cursor: 'pointer' }}
+                />
+
+              </div>
+
             </div>
-            
-            </div>
-            <button 
+            <button
               onClick={() => analyzeDream(transcript || '')}
               className="analyze-button"
               disabled={isAnalyzing || !transcript}
@@ -1347,26 +1343,26 @@ const DreamCaptureStudio: React.FC = () => {
               {isAnalyzing ? <LoadingDots text="analyzing" /> : 'analyze dream'}
             </button>
             <div className={`transcript-container ${isExpanded ? 'expanded' : ''}`} ref={transcriptRef}>
-            <div className="transcript-actions">
-              <button 
-                onClick={isEditing ? handleSaveEdit : handleEditClick}
-                className="edit-button"
-              >
-                {isEditing ? 'save' : 'edit'}
-              </button>
-              <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
-              {isEditing ? (
-                  <textarea
-                  className="transcript-edit-area"
-                  value={editedTranscript}
-                  onChange={handleTextAreaChange}
-                  autoFocus
-                />
-                ) : (
-                <p className="transcript-text">{transcript}</p>
-              )}
-              </div>
-              {/* {(isTranscriptOverflowing || isExpanded) && 
+              <div className="transcript-actions">
+                <button
+                  onClick={isEditing ? handleSaveEdit : handleEditClick}
+                  className="edit-button"
+                >
+                  {isEditing ? 'save' : 'edit'}
+                </button>
+                <div className={`transcript-text-container ${isExpanded ? 'expanded' : ''}`}>
+                  {isEditing ? (
+                    <textarea
+                      className="transcript-edit-area"
+                      value={editedTranscript}
+                      onChange={handleTextAreaChange}
+                      autoFocus
+                    />
+                  ) : (
+                    <p className="transcript-text">{transcript}</p>
+                  )}
+                </div>
+                {/* {(isTranscriptOverflowing || isExpanded) && 
                 <span 
                   onClick={() => setIsExpanded(!isExpanded)} 
                   className="more-text"
@@ -1374,9 +1370,9 @@ const DreamCaptureStudio: React.FC = () => {
                   {isExpanded ? 'less' : 'more'}
                 </span>
               } */}
-            </div>
-            
-            
+              </div>
+
+
             </div>
             {/* <button 
               onClick={() => analyzeDream(transcript || '')}
@@ -1385,8 +1381,8 @@ const DreamCaptureStudio: React.FC = () => {
             >
               {isAnalyzing ? <LoadingDots text="analyzing" /> : 'analyze dream'}
             </button> */}
-          
-        </div>
+
+          </div>
         </div>
       ) : (
         // Recording screen
@@ -1396,22 +1392,22 @@ const DreamCaptureStudio: React.FC = () => {
 
           {/* Waveform */}
           <div className={`waveform ${hasRecorded || isRecording ? 'recording' : ''}`}>
-            <canvas 
-              ref={canvasRef} 
+            <canvas
+              ref={canvasRef}
               className="waveform-canvas"
             />
           </div>
 
           {/* Add error message here, before the controls */}
-        {recordingError && (
-          <div className="recording-error" role="alert">
-            {recordingError}
-          </div>
-        )}
+          {recordingError && (
+            <div className="recording-error" role="alert">
+              {recordingError}
+            </div>
+          )}
 
           {/* Record Button and Status */}
           <div className={`controls-container ${hasRecorded || isRecording ? 'recording' : ''}`}>
-            <button 
+            <button
               onClick={handleRecordToggle}
               className="record-button"
             >
@@ -1424,36 +1420,36 @@ const DreamCaptureStudio: React.FC = () => {
               )}
             </button>
             <div className="status-text">
-              {isRecording ? 'recording...' : 
-               isPlaying ? 'playing...' :
-               hasRecorded ? 'tap to play' : 
-               'tap to catch your dream'}
+              {isRecording ? 'recording...' :
+                isPlaying ? 'playing...' :
+                  hasRecorded ? 'tap to play' :
+                    'tap to catch your dream'}
             </div>
           </div>
 
-         
+
 
           {hasRecorded && !isRecording && (
-        <div className="recorded-actions-container">
-          <button 
-            onClick={handleSaveDream}
-            className="save-button"
-            disabled={isTranscribing}
-          >
-            {isTranscribing ? <LoadingDots text="transcribing" /> : 'transcribe dream'}
-          </button>
+            <div className="recorded-actions-container">
+              <button
+                onClick={handleSaveDream}
+                className="save-button"
+                disabled={isTranscribing}
+              >
+                {isTranscribing ? <LoadingDots text="transcribing" /> : 'transcribe dream'}
+              </button>
 
-          <div className="record-again-container">
-            <p className="record-again-text">did you miss anything?</p>
-            
-          </div>
-          <button className="record-again-button">record again</button>
-        </div>
+              <div className="record-again-container">
+                <p className="record-again-text">did you miss anything?</p>
+
+              </div>
+              <button className="record-again-button">record again</button>
+            </div>
+          )}
+        </>
       )}
-      </>
-    )}
-  </div>
-);
+    </div>
+  );
 };
 
 export default DreamCaptureStudio;
