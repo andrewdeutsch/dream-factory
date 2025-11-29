@@ -1056,17 +1056,21 @@ input:checked+.slider:before {
   color: #ff6e40;
 }
 
-/* Desktop media query - set container widths to 50% */
+/* Desktop media query - set container widths to 50% of viewport */
 @media (min-width: 768px) {
 
   .transcript-container,
   .analysis-container {
-    width: 50%;
-    max-width: 50%;
+    width: 50vw;
+    max-width: 50vw;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .transcript-content,
-  .analysis-screen {
-    max-width: 100%;
+  .analysis-screen,
+  .analysis-content {
+    max-width: none;
+    width: 100%;
   }
 }
