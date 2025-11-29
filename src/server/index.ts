@@ -20,11 +20,11 @@ app.post('/api/analyze-dream', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.CLAUDE_API_KEY!,
-        'anthropic-version': '2023-06-01'
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2024-10-03'
       },
       body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
+        model: 'claude-sonnet-4.5',
         max_tokens: 1024,
         messages: [{
           role: 'user',

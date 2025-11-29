@@ -749,7 +749,7 @@ const DreamCaptureStudio: React.FC = () => {
     setIsSaving(true);
     console.log('Starting save to library process');
     
-    const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams();
+    const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams('audio');
 
     if (!apiKey) {
       console.error('API Key is missing from environment variables');
@@ -907,12 +907,8 @@ const DreamCaptureStudio: React.FC = () => {
     }
   };
 
-  // Add image generation function
-  const generateDreamImage = async () => {
-    setIsGeneratingImage(true);
-    
+  const requestDreamImageBase64 = async (model: string, promptText: string) => {
     try {
-      console.log('Starting DALL-E image generation...');
       const response = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: {
@@ -920,32 +916,68 @@ const DreamCaptureStudio: React.FC = () => {
           'Authorization': `Bearer ${OPENAI_API_KEY}`
         },
         body: JSON.stringify({
-          model: "dall-e-3",
-          prompt: `Create a plain, realistic image interpreting this dream: ${analysis}. Style: photorealistic, soft, even lighting, natural tones, minimal shadows, with a calm and balanced atmosphere.`,
+          model,
+          prompt: promptText,
           n: 1,
-          size: "1024x1024",
-          response_format: "b64_json"
+          size: '1024x1024',
+          response_format: 'b64_json'
         })
       });
 
-      const data = await response.json();
-      const base64Data = data.data[0].b64_json;
+      const responseBody = await response.json().catch((jsonError) => {
+        console.error('Failed to parse OpenAI response JSON', jsonError);
+        return null;
+      });
+
+      if (!response.ok) {
+        console.error('OpenAI image generation failed:', {
+          model,
+          status: response.status,
+          body: responseBody
+        });
+        return null;
+      }
+
+      const base64Data = responseBody?.data?.[0]?.b64_json;
+      if (!base64Data) {
+        console.error('OpenAI response missing b64_json data', responseBody);
+        return null;
+      }
+
+      return base64Data;
+    } catch (error) {
+      console.error('Error fetching image from OpenAI', { model, error });
+      return null;
+    }
+  };
+
+  const generateDreamImage = async () => {
+    setIsGeneratingImage(true);
+    
+    const promptAnalysis = analysis?.trim() || 'a freshly recorded dream description';
+    const promptText = `Create a plain, realistic image interpreting this dream: ${promptAnalysis}. Style: photorealistic, soft, even lighting, natural tones, minimal shadows, with a calm and balanced atmosphere.`;
+    const imageModels = ['dall-e-3.1', 'dall-e-3'];
+
+    try {
+      let base64Data: string | null = null;
+      for (const model of imageModels) {
+        base64Data = await requestDreamImageBase64(model, promptText);
+        if (base64Data) break;
+        console.warn(`Model ${model} did not return valid image data, trying next available model.`);
+      }
+
+      if (!base64Data) {
+        throw new Error('No OpenAI image model returned usable data.');
+      }
       
       // Upload to Cloudinary
-      const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams();
+      const { timestamp, signature, publicId, apiKey, folder, uploadPreset } = generateSecureUploadParams('image');
       
       console.log('Upload configuration:', {
         preset: uploadPreset,
         folder,
         cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
         hasApiKey: !!apiKey
-      });
-
-      console.log('Image upload parameters:', {
-        folder,
-        uploadPreset,
-        hasApiKey: !!apiKey,
-        timestamp
       });
 
       if (!apiKey) {
@@ -961,16 +993,14 @@ const DreamCaptureStudio: React.FC = () => {
       formData.append('folder', folder); 
       formData.append('type', 'authenticated'); 
       formData.append('access_mode', 'authenticated');
-      formData.append('upload_preset', 'dream_images');
+      formData.append('upload_preset', uploadPreset);
 
       const uploadUrl = `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`;
       console.log('Uploading to:', uploadUrl);
-      console.log('Upload URL:', `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`);
       console.log('FormData keys:', Array.from(formData.keys()));
 
-      
       const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        uploadUrl,
         {
           method: 'POST',
           body: formData
@@ -987,6 +1017,9 @@ const DreamCaptureStudio: React.FC = () => {
       console.log('Successfully uploaded to Cloudinary:', imageData);
 
       const imageUrl = imageData.secure_url;
+      if (!imageUrl) {
+        throw new Error('Cloudinary response missing secure_url');
+      }
       console.log('Setting image URL:', imageUrl); // Debug log
       setImageUrl(imageUrl);
       return imageUrl;
