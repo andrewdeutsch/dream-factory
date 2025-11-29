@@ -957,7 +957,7 @@ const DreamCaptureStudio: React.FC = () => {
     setIsGeneratingImage(true);
 
     const promptAnalysis = analysis?.trim() || 'a freshly recorded dream description';
-    const promptText = `Create a plain, realistic image interpreting this dream: ${promptAnalysis}. Style: photorealistic, soft, even lighting, natural tones, minimal shadows, with a calm and balanced atmosphere.`;
+    const promptText = `Create an immersive, first-person perspective image of this dream: ${promptAnalysis}. The viewer should feel like they are inside the dream, experiencing it directly through the dreamer's eyes. Use a POV composition that places the viewer in the action. Style: photorealistic, natural lighting, vivid yet natural tones, atmospheric depth, with an intimate and immersive quality that draws the viewer into the scene.`;
 
     try {
       const base64Data = await requestDreamImageBase64(promptText);
